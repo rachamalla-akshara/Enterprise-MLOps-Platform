@@ -61,6 +61,7 @@ reports/evaluations/*
 !reports/evaluations/training_report.md
 !reports/evaluations/training_metrics.json
 !reports/evaluations/shap_importances.json
+!reports/evaluations/mlflow_migration_audit.json
 !reports/evaluations/synthetic/
 !reports/evaluations/synthetic/*
 reports/figures/*

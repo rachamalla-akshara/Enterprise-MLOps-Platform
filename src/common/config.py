@@ -202,6 +202,22 @@ def get_config(config_path: Optional[str] = None) -> AppConfig:
         with open(path, "r", encoding="utf-8") as f:
             raw_data = yaml.safe_load(f)
         config = AppConfig(**raw_data)
+
+        # Allow container / deployment environment variable overrides
+        import os
+        if "MLFLOW_TRACKING_URI" in os.environ:
+            config.mlflow.tracking_uri = os.environ["MLFLOW_TRACKING_URI"]
+        if "PREDICTION_DB_URI" in os.environ:
+            config.serving.prediction_db_uri = os.environ["PREDICTION_DB_URI"]
+        elif "DATABASE_URL" in os.environ:
+            config.serving.prediction_db_uri = os.environ["DATABASE_URL"]
+        if "SERVING_RELOAD_TOKEN" in os.environ:
+            config.serving.reload_token = os.environ["SERVING_RELOAD_TOKEN"]
+        if "SERVING_DECISION_THRESHOLD" in os.environ:
+            config.serving.decision_threshold = float(os.environ["SERVING_DECISION_THRESHOLD"])
+        if "SERVING_MODEL_ALIAS" in os.environ:
+            config.serving.model_alias = os.environ["SERVING_MODEL_ALIAS"]
+
         if config_path is None:
             _cached_config = config
         return config

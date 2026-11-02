@@ -1,0 +1,168 @@
+# ==============================================================================
+# Enterprise MLOps Platform — Docker Compose Orchestration Specification
+# ==============================================================================
+
+name: enterprise-mlops-platform
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. PostgreSQL Database (MLflow Tracking Metadata & Prediction Telemetry)
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: mlops-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mlops_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mlops_password}
+      POSTGRES_DB: ${POSTGRES_DB:-mlops_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_postgres.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    networks:
+      - mlops_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-mlops_user} -d $${POSTGRES_DB:-mlops_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  # ----------------------------------------------------------------------------
+  # 2. MLflow Tracking & Model Registry Server
+  # ----------------------------------------------------------------------------
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: enterprise-mlops-api:1.0.0
+    container_name: mlops-mlflow
+    restart: unless-stopped
+    command: >
+      mlflow server
+      --backend-store-uri postgresql+psycopg2://${POSTGRES_USER:-mlops_user}:${POSTGRES_PASSWORD:-mlops_password}@postgres:5432/${POSTGRES_DB:-mlops_db}
+      --default-artifact-root /app/mlruns
+      --host 0.0.0.0
+      --port 5000
+    environment:
+      MLFLOW_DISABLE_AGENT_HINT: "1"
+      POSTGRES_USER: ${POSTGRES_USER:-mlops_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mlops_password}
+      POSTGRES_DB: ${POSTGRES_DB:-mlops_db}
+    volumes:
+      - mlflow_artifacts:/app/mlruns
+      - ./mlruns:/app/local_mlruns:ro
+    ports:
+      - "${MLFLOW_HOST_PORT:-5000}:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mlops_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  # ----------------------------------------------------------------------------
+  # 3. FastAPI Model Serving Engine
+  # ----------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: enterprise-mlops-api:1.0.0
+    container_name: mlops-api
+    restart: unless-stopped
+    command: ["uvicorn", "src.serving.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      PREDICTION_DB_URI: postgresql+psycopg2://${POSTGRES_USER:-mlops_user}:${POSTGRES_PASSWORD:-mlops_password}@postgres:5432/${POSTGRES_DB:-mlops_db}
+      SERVING_RELOAD_TOKEN: ${SERVING_RELOAD_TOKEN:-dev-admin-secret-key-phase3}
+      SERVING_DECISION_THRESHOLD: ${SERVING_DECISION_THRESHOLD:-0.571}
+      SERVING_MODEL_ALIAS: champion
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - mlflow_artifacts:/app/mlruns:ro
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    networks:
+      - mlops_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1.5G
+
+  # ----------------------------------------------------------------------------
+  # 4. MinIO Object Storage (Optional S3-Compatible Storage via 'storage' Profile)
+  # ----------------------------------------------------------------------------
+  minio:
+    profiles:
+      - storage
+    image: minio/minio:RELEASE.2024-01-18T22-51-28Z
+    container_name: mlops-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    networks:
+      - mlops_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+# ------------------------------------------------------------------------------
+# Networks & Persistent Named Volumes
+# ------------------------------------------------------------------------------
+networks:
+  mlops_network:
+    driver: bridge
+    name: mlops_network
+
+volumes:
+  postgres_data:
+    name: mlops_postgres_data
+  mlflow_artifacts:
+    name: mlops_mlflow_artifacts
+  minio_data:
+    name: mlops_minio_data

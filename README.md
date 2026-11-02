@@ -94,6 +94,7 @@ Complete architectural blueprints and operational specifications are available i
 - [**MLflow Tracking & Registry Design (`docs/mlflow_design.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/mlflow_design.md): Experiment organization, run metadata schema, model signatures, and promotion policies.
 - [**MLflow Implementation & Operations (`docs/mlflow_implementation.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/mlflow_implementation.md): Complete implementation guide covering SQLite tracking, cloudpickle logging, promotion gating, rollback, and dynamic alias resolution.
 - [**FastAPI Model Serving & Telemetry (`docs/fastapi_serving.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/fastapi_serving.md): High-throughput REST API serving engine, dynamic MLflow alias loading, atomic model reloads, and telemetry logging.
+- [**Docker Deployment & Orchestration (`docs/docker_deployment.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/docker_deployment.md): Multi-stage container builds, Docker Compose topology, persistent volume architecture, and MLflow migration tools.
 - [**Deployment Architecture (`docs/deployment_design.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/deployment_design.md): Multi-stage Dockerfiles, Docker Compose topology, Kubernetes manifests, HPA, and rolling update strategies.
 - [**Monitoring & Drift Detection (`docs/monitoring_design.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/monitoring_design.md): Prometheus metrics catalog, Grafana dashboards, Evidently AI statistical tests, and automated retraining triggers.
 - [**Implementation Roadmap & Testing (`docs/implementation_roadmap.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/implementation_roadmap.md): Multi-phase development roadmap, unit/integration/stress testing strategy, and GitHub Actions CI/CD workflows.
@@ -108,8 +109,8 @@ Complete architectural blueprints and operational specifications are available i
 [x] Phase 1.1: Real-Data Canonical Validation & Provenance Verification (COMPLETED)
 [x] Phase 2: MLflow Tracking Server Infrastructure & Dynamic Model Registry Integration (COMPLETED)
 [x] Phase 3: Production-Grade FastAPI Model Serving Engine & Prediction Telemetry (COMPLETED)
-[ ] Phase 4: Lightweight Docker Multi-Stage Containerization & Compose Orchestration (NEXT)
-[ ] Phase 5: Configurable Evidently AI Drift Detection Worker & Automated Retraining Loop
+[x] Phase 4: Lightweight Docker Multi-Stage Containerization & Compose Orchestration (COMPLETED)
+[ ] Phase 5: Configurable Evidently AI Drift Detection Worker & Automated Retraining Loop (NEXT)
 [ ] Phase 6: Prometheus & Grafana Observability Dashboards & Alert Rules
 [ ] Phase 7: Kubernetes Orchestration (Manifests, HPA, Ingress & Health Probes)
 [ ] Phase 8: GitHub Actions CI/CD Automation & Security Scanning
@@ -236,4 +237,49 @@ curl -X POST http://127.0.0.1:8000/model/reload \
   -H "Content-Type: application/json" \
   -H "X-Admin-API-Key: dev-admin-secret-key-phase3" \
   -d '{"alias": "champion"}'
+```
+
+---
+
+## 9. Docker Containerization & Compose Orchestration
+
+### 1. Prerequisites
+- Docker Engine 24.0+ / Docker Desktop
+- Docker Compose v2.20+ (included with Docker Desktop)
+
+### 2. Validate Compose Specification
+```bash
+docker compose config
+```
+
+### 3. Build & Launch the Complete MLOps Stack
+```bash
+# Build multi-stage image and launch core services (PostgreSQL, MLflow, FastAPI)
+docker compose up -d --build
+
+# Optional: Launch with MinIO S3 object storage profile
+docker compose --profile storage up -d
+```
+
+### 4. Service Endpoints in Docker
+- **FastAPI Serving Engine**: `http://localhost:8000` (Docs: `http://localhost:8000/docs`)
+- **MLflow Tracking UI**: `http://localhost:5000`
+- **PostgreSQL Database**: `localhost:5432` (`mlops_user` / `mlops_password` / `mlops_db`)
+- **MinIO Console** *(Storage profile only)*: `http://localhost:9001` (`minioadmin` / `minioadmin`)
+
+### 5. Migrate Existing Model Registry into PostgreSQL
+To synchronize the local SQLite registry (`mlflow.db`) and artifacts into the containerized PostgreSQL database with prediction parity verification:
+```bash
+python scripts/migrate_mlflow_registry.py \
+  "sqlite:///mlflow.db" \
+  "postgresql+psycopg2://mlops_user:mlops_password@localhost:5432/mlops_db"
+```
+
+### 6. Compose Teardown
+```bash
+# Stop containers while preserving persistent volumes
+docker compose down
+
+# Stop containers and erase all volume data (CAUTION)
+docker compose down -v
 ```

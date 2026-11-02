@@ -1,0 +1,15 @@
+{
+  "migration_timestamp": "2026-11-02T14:32:39.817917+00:00",
+  "source_tracking_uri": "sqlite:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/mlflow.db",
+  "target_tracking_uri": "sqlite:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/mlflow.db",
+  "model_name": "customer-churn-classifier",
+  "champion_version": "4",
+  "champion_run_id": "0c10e58f843846258e8704874b62581f",
+  "aliases_verified": {
+    "candidate": 4,
+    "challenger": 3,
+    "champion": 4
+  },
+  "parity_verified": true,
+  "status": "SUCCESS"
+}

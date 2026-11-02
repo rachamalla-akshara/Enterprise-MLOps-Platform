@@ -1,0 +1,66 @@
+# ==============================================================================
+# Enterprise MLOps Platform — Docker Build Ignore Rules
+# ==============================================================================
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+
+# Virtual Environments
+venv/
+.venv/
+ENV/
+env/
+
+# Version Control & IDEs
+.git/
+.gitignore
+.gitattributes
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Tests and Coverage
+tests/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+nosetests.xml
+coverage.xml
+
+# Development Database files & temporary local storage
+*.sqlite3
+*.db
+predictions.db
+
+# Large raw datasets (not bundled in runtime image)
+data/raw/*
+!data/raw/.gitkeep
+data/interim/*
+!data/interim/.gitkeep
+
+# Environment secrets and credentials (NEVER bake into image)
+.env
+.env.*
+!*.example
+secrets/
+*.pem
+*.key

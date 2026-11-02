@@ -1,0 +1,33 @@
+# ==============================================================================
+# Enterprise MLOps Platform - Production Runtime Dependencies
+# ==============================================================================
+
+# Core Application & Configuration
+python-dotenv==1.2.1
+pyyaml==6.0.3
+pydantic==2.11.10
+
+# Scientific & Machine Learning
+numpy==2.2.6
+pandas==2.3.2
+scikit-learn==1.9.0
+xgboost==3.4.1
+scipy==1.16.2
+joblib==1.6.0
+shap==0.52.0
+matplotlib==3.10.6
+seaborn==0.13.2
+pyarrow==21.0.0
+
+# API Serving Engine
+fastapi==0.118.0
+uvicorn[standard]==0.37.0
+httpx==0.28.1
+
+# Database & Telemetry Persistence (PostgreSQL & SQLite)
+sqlalchemy==2.1.6
+psycopg2-binary==2.9.10
+
+# MLflow Tracking & Registry
+mlflow==3.17.2
+boto3==1.37.9
