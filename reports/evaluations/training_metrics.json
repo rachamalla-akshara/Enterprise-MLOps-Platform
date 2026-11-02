@@ -1,0 +1,227 @@
+{
+  "project": "Enterprise MLOps Platform - Customer Churn Prediction",
+  "champion_model": "XGBoost_Tuned",
+  "champion_metrics": {
+    "model_name": "XGBoost_Tuned",
+    "decision_threshold": 0.592,
+    "roc_auc": 0.8566,
+    "pr_auc": 0.7155,
+    "f1": 0.7032,
+    "precision": 0.6225,
+    "recall": 0.808,
+    "accuracy": 0.7748,
+    "brier_score": 0.1697,
+    "optimal_threshold": 0.558,
+    "optimal_f1": 0.7082,
+    "confusion_matrix": {
+      "tn": 537,
+      "fp": 171,
+      "fn": 67,
+      "tp": 282
+    },
+    "business_cost": {
+      "customer_lifetime_value": 500.0,
+      "intervention_cost": 50.0,
+      "total_cost": 42050.0,
+      "avg_cost_per_customer": 39.78
+    },
+    "latency_benchmark": {
+      "mean_ms": 12.362,
+      "p50_ms": 12.083,
+      "p95_ms": 13.816,
+      "p99_ms": 15.968
+    }
+  },
+  "all_models_evaluated": {
+    "Logistic_Regression": {
+      "model_name": "Logistic_Regression",
+      "decision_threshold": 0.555,
+      "roc_auc": 0.8559,
+      "pr_auc": 0.711,
+      "f1": 0.7087,
+      "precision": 0.6329,
+      "recall": 0.8052,
+      "accuracy": 0.7815,
+      "brier_score": 0.1582,
+      "optimal_threshold": 0.552,
+      "optimal_f1": 0.7103,
+      "confusion_matrix": {
+        "tn": 545,
+        "fp": 163,
+        "fn": 68,
+        "tp": 281
+      },
+      "business_cost": {
+        "customer_lifetime_value": 500.0,
+        "intervention_cost": 50.0,
+        "total_cost": 42150.0,
+        "avg_cost_per_customer": 39.88
+      },
+      "latency_benchmark": {
+        "mean_ms": 9.4,
+        "p50_ms": 9.337,
+        "p95_ms": 10.202,
+        "p99_ms": 10.738
+      }
+    },
+    "Random_Forest": {
+      "model_name": "Random_Forest",
+      "decision_threshold": 0.595,
+      "roc_auc": 0.855,
+      "pr_auc": 0.7039,
+      "f1": 0.6974,
+      "precision": 0.6624,
+      "recall": 0.7364,
+      "accuracy": 0.789,
+      "brier_score": 0.1574,
+      "optimal_threshold": 0.506,
+      "optimal_f1": 0.7041,
+      "confusion_matrix": {
+        "tn": 577,
+        "fp": 131,
+        "fn": 92,
+        "tp": 257
+      },
+      "business_cost": {
+        "customer_lifetime_value": 500.0,
+        "intervention_cost": 50.0,
+        "total_cost": 52550.0,
+        "avg_cost_per_customer": 49.72
+      },
+      "latency_benchmark": {
+        "mean_ms": 63.983,
+        "p50_ms": 60.906,
+        "p95_ms": 79.314,
+        "p99_ms": 113.432
+      }
+    },
+    "XGBoost_Baseline": {
+      "model_name": "XGBoost_Baseline",
+      "decision_threshold": 0.536,
+      "roc_auc": 0.8532,
+      "pr_auc": 0.709,
+      "f1": 0.704,
+      "precision": 0.6123,
+      "recall": 0.8281,
+      "accuracy": 0.7701,
+      "brier_score": 0.1691,
+      "optimal_threshold": 0.545,
+      "optimal_f1": 0.7083,
+      "confusion_matrix": {
+        "tn": 525,
+        "fp": 183,
+        "fn": 60,
+        "tp": 289
+      },
+      "business_cost": {
+        "customer_lifetime_value": 500.0,
+        "intervention_cost": 50.0,
+        "total_cost": 39150.0,
+        "avg_cost_per_customer": 37.04
+      },
+      "latency_benchmark": {
+        "mean_ms": 16.897,
+        "p50_ms": 16.254,
+        "p95_ms": 20.363,
+        "p99_ms": 26.829
+      }
+    },
+    "XGBoost_Tuned": {
+      "model_name": "XGBoost_Tuned",
+      "decision_threshold": 0.592,
+      "roc_auc": 0.8566,
+      "pr_auc": 0.7155,
+      "f1": 0.7032,
+      "precision": 0.6225,
+      "recall": 0.808,
+      "accuracy": 0.7748,
+      "brier_score": 0.1697,
+      "optimal_threshold": 0.558,
+      "optimal_f1": 0.7082,
+      "confusion_matrix": {
+        "tn": 537,
+        "fp": 171,
+        "fn": 67,
+        "tp": 282
+      },
+      "business_cost": {
+        "customer_lifetime_value": 500.0,
+        "intervention_cost": 50.0,
+        "total_cost": 42050.0,
+        "avg_cost_per_customer": 39.78
+      },
+      "latency_benchmark": {
+        "mean_ms": 12.362,
+        "p50_ms": 12.083,
+        "p95_ms": 13.816,
+        "p99_ms": 15.968
+      }
+    }
+  },
+  "shap_summary": {
+    "explainer_type": "TreeExplainer",
+    "evaluated_samples": 300,
+    "top_features": [
+      {
+        "feature": "tenure",
+        "mean_abs_shap": 0.84873
+      },
+      {
+        "feature": "Contract_Two year",
+        "mean_abs_shap": 0.5823
+      },
+      {
+        "feature": "Contract_One year",
+        "mean_abs_shap": 0.37583
+      },
+      {
+        "feature": "MonthlyCharges",
+        "mean_abs_shap": 0.34571
+      },
+      {
+        "feature": "InternetService_Fiber optic",
+        "mean_abs_shap": 0.26254
+      },
+      {
+        "feature": "PaymentMethod_Electronic check",
+        "mean_abs_shap": 0.13149
+      },
+      {
+        "feature": "TotalCharges",
+        "mean_abs_shap": 0.1011
+      },
+      {
+        "feature": "OnlineSecurity_Yes",
+        "mean_abs_shap": 0.06593
+      },
+      {
+        "feature": "TechSupport_Yes",
+        "mean_abs_shap": 0.05302
+      },
+      {
+        "feature": "Dependents_Yes",
+        "mean_abs_shap": 0.05179
+      },
+      {
+        "feature": "MultipleLines_Yes",
+        "mean_abs_shap": 0.02021
+      },
+      {
+        "feature": "InternetService_No",
+        "mean_abs_shap": 0.01969
+      },
+      {
+        "feature": "OnlineSecurity_No internet service",
+        "mean_abs_shap": 0.00929
+      },
+      {
+        "feature": "DeviceProtection_Yes",
+        "mean_abs_shap": 0.00853
+      },
+      {
+        "feature": "PaperlessBilling_Yes",
+        "mean_abs_shap": 0.00708
+      }
+    ]
+  }
+}

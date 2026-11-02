@@ -1,0 +1,64 @@
+{
+  "dataset_rows": 7043,
+  "features_count": 21,
+  "target_distribution": {
+    "counts": {
+      "No": 4719,
+      "Yes": 2324
+    },
+    "percentages": {
+      "No": 67.0,
+      "Yes": 33.0
+    },
+    "churn_rate_percent": 33.0
+  },
+  "numerical_statistics": {
+    "tenure": {
+      "mean": 32.41,
+      "std": 25.19,
+      "median": 26.0,
+      "min": 0.0,
+      "max": 72.0,
+      "missing": 0
+    },
+    "MonthlyCharges": {
+      "mean": 73.84,
+      "std": 25.02,
+      "median": 80.13,
+      "min": 18.25,
+      "max": 118.75,
+      "missing": 0
+    },
+    "TotalCharges": {
+      "mean": 2483.06,
+      "std": 2108.23,
+      "median": 1767.2,
+      "min": 21.24,
+      "max": 8194.08,
+      "missing": 265
+    }
+  },
+  "churn_rate_by_category": {
+    "Contract": {
+      "Month-to-month": 55.71,
+      "One year": 18.16,
+      "Two year": 4.36
+    },
+    "InternetService": {
+      "DSL": 30.67,
+      "Fiber optic": 41.98,
+      "No": 18.42
+    },
+    "PaymentMethod": {
+      "Bank transfer (automatic)": 31.51,
+      "Credit card (automatic)": 29.87,
+      "Electronic check": 37.28,
+      "Mailed check": 31.15
+    },
+    "TechSupport": {
+      "No": 38.04,
+      "No internet service": 18.42,
+      "Yes": 35.29
+    }
+  }
+}

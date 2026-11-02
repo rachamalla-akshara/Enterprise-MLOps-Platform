@@ -58,6 +58,9 @@ reports/drift/*
 !reports/drift/.gitkeep
 reports/evaluations/*
 !reports/evaluations/.gitkeep
+!reports/evaluations/training_report.md
+!reports/evaluations/training_metrics.json
+!reports/evaluations/shap_importances.json
 reports/figures/*
 !reports/figures/.gitkeep
 

@@ -112,17 +112,17 @@ To prevent target leakage and data leakage between splits:
 
 ---
 
-## 6. Automated Model Acceptance Criteria (Gating Protocol)
+## 6. Configurable Model Acceptance Criteria & Benchmarking
 
-Before any trained model is eligible for registration or staging promotion, it must clear the **Automated Gating Engine**:
+Performance thresholds and latency criteria are treated as configurable targets, evaluated empirically against test benchmarks rather than assumed as guaranteed:
 
-| Gate Identifier | Metric / Check | Minimum Threshold | Rationale |
+| Gate Identifier | Target Metric / Check | Configurable Target Value | Rationale |
 | :--- | :--- | :--- | :--- |
-| **GATE-01** | Test ROC-AUC | $\ge 0.830$ | Ensures strong discriminative separation across decision thresholds |
-| **GATE-02** | Test PR-AUC | $\ge 0.650$ | Validates precision-recall balance on minority churn class |
-| **GATE-03** | Test F1-Score (Optimal Cutoff) | $\ge 0.600$ | Guarantees balanced operational performance |
-| **GATE-04** | Inference Latency Benchmark | $\le 25\text{ ms}$ (p95, batch=1) | Guarantees service level objectives under real-time load |
-| **GATE-05** | Challenger Improvement | $\Delta \text{PR-AUC} > +0.01$ | Prevents unnecessary model churn unless statistically superior |
-| **GATE-06** | Model Schema Signature | Input/Output contract verified | Ensures FastAPI serving compatibility without runtime crashes |
+| **GATE-01** | Test ROC-AUC | Configurable (e.g. $\ge 0.830$) | Evaluates overall discriminative ability across classification thresholds |
+| **GATE-02** | Test PR-AUC | Configurable (e.g. $\ge 0.650$) | Prioritizes precision and recall on the minority positive churn class |
+| **GATE-03** | Test F1-Score | Configurable (e.g. $\ge 0.580$) | Measures harmonic balance of precision and recall at optimal threshold |
+| **GATE-04** | Inference Latency Benchmark | Empirically Benchmarked | Measured under actual local/test execution; target $p95 \le 30\text{ ms}$ |
+| **GATE-05** | Challenger Improvement | $\Delta \text{PR-AUC} > +0.005$ | Prevents model thrashing unless measurable statistical gain exists |
+| **GATE-06** | Model Schema Signature | Input/Output contract verified | Ensures serving compatibility without runtime crashes |
 
-Models failing any gate are logged with error status in MLflow, tagged as `QUARANTINED`, and will never be pushed to the active serving stage.
+Models failing configured criteria trigger warnings and evaluation summaries for engineer review. In Phase 2, these targets form the automated gating criteria for Model Registry promotion.

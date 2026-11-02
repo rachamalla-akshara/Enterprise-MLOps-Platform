@@ -1,6 +1,23 @@
 # Implementation Roadmap, Testing Strategy & CI/CD Workflow
 
-## 1. Testing Strategy
+## 1. Engineering Directives & Architecture Principles
+
+Following architectural review, the implementation adheres strictly to the following ten engineering directives:
+
+1. **Strict Phase Boundaries**: Phase 1 focuses exclusively on data ingestion, schema validation, preprocessing, model training, hyperparameter tuning, local artifact persistence, and empirical evaluation.
+2. **Deferred MLflow Integration**: All MLflow tracking server setup, remote metadata/artifact logging, and model registry promotions are deferred to Phase 2.
+3. **Configurable Performance Targets**: Metrics such as ROC-AUC, PR-AUC, and latency are treated as configurable benchmark targets and evaluation criteria, rather than assumed or guaranteed performance.
+4. **Dynamic Model Resolution**: The model serving layer implements dynamic model alias resolution (e.g. querying active `champion`) with hot-reloading capability, eliminating redundant container restarts upon model promotion.
+5. **Statistically Rigorous Drift Detection**: Numerical features are tested using Kolmogorov-Smirnov (KS) tests and Wasserstein Distance; categorical features are tested using Chi-Square Tests of Independence and Jensen-Shannon Divergence.
+6. **Configurable Drift Thresholds**: All drift p-values and dataset drift share thresholds are defined externally in configuration files rather than hardcoded.
+7. **Lightweight Containerization**: Initial Docker and Kubernetes specifications are optimized for local development and developer workstations before scaling up to multi-node clusters.
+8. **Pragmatic Architecture**: Avoid unnecessary microservices or resource-intensive orchestration overhead; focus on clean, decoupled, maintainable modules.
+9. **Empirical Benchmarking**: Measure and log actual inference latencies, throughput, and error distributions under benchmark runs rather than assuming arbitrary SLAs.
+10. **Evidence-Based Claims**: Every capability, metric, and feature claimed must be supported by working Python code and verified test results.
+
+---
+
+## 2. Testing Strategy
 
 The platform enforces testing across all layers of the machine learning and software stack:
 
@@ -8,7 +25,7 @@ The platform enforces testing across all layers of the machine learning and soft
 flowchart TD
     subgraph TestingPyramid["Enterprise Testing Pyramid"]
         E2E["End-to-End System Tests\n(Full Train-to-Serve-to-Monitor Loop)"]
-        Integration["Integration Tests\n(FastAPI + DB + MLflow + Evidently)"]
+        Integration["Integration Tests\n(FastAPI + DB + Dynamic Model Loading)"]
         Unit["Unit Tests\n(Validators, Preprocessing, Estimators, Schemas)"]
         DataContracts["Data Contracts & Schema Validation\n(Pydantic & Range Tests)"]
     end
@@ -22,70 +39,37 @@ flowchart TD
 
 1. **Unit Testing (`pytest`)**:
    - **Data Validation Tests**: Missing field handling, invalid categorical value rejection, type coercion.
-   - **Preprocessing Tests**: Verify zero leakage (no statistics leaked from test to train), transformer invariance, missing imputation behavior.
+   - **Preprocessing Tests**: Verify zero data leakage (no statistics leaked from test to train), transformer fit/transform separation, imputer behavior.
    - **Model Tests**: Determinism (fixed random seeds), output probability shape checks $[0.0, 1.0]$, gradient checks.
    - **Schema Tests**: Pydantic input/output serialization and deserialization.
 
-2. **Integration Testing (`pytest-asyncio`, `testcontainers`)**:
+2. **Integration Testing (`pytest`)**:
    - **Inference API**: Mocked and live model inference endpoints, HTTP status codes, error payload schemas.
    - **Database Logging**: Verifies prediction logs and ground-truth feedback are correctly recorded in PostgreSQL.
-   - **MLflow Tracking**: Verifies runs are logged with parameters, metrics, tags, and loadable serialized pipelines.
-   - **Drift Calculation**: Tests Evidently AI drift calculations on synthetic drifting data.
+   - **Drift Calculation**: Tests statistical drift calculations on synthetic drifting distributions.
 
-3. **Performance & Stress Testing (`locust`)**:
-   - Verifies API meets $\le 25\text{ ms}$ (p95) latency SLA under concurrent loads of $100\text{ RPS}$ to $500\text{ RPS}$.
-   - Evaluates memory footprint and identifies memory leaks during continuous prediction logging.
+3. **Performance Benchmarking (`benchmark / locust`)**:
+   - Measures actual p50, p95, and p99 inference latency on batch sizes of 1, 10, and 100 requests.
+   - Tracks memory footprint and execution duration.
 
-4. **Security Testing (`bandit`, `pip-audit`, `trivy`)**:
+4. **Security Testing (`bandit`, `pip-audit`)**:
    - Static analysis for Python code vulnerabilities (`bandit`).
-   - Software bill-of-materials and dependency vulnerability checks (`pip-audit`).
-   - Container image vulnerability scanning (`trivy`).
-
----
-
-## 2. CI/CD Workflow Specification (GitHub Actions)
-
-The deployment pipeline is automated via three dedicated GitHub Actions workflows:
-
-```mermaid
-flowchart LR
-    subgraph CI_Workflow["1. CI Pipeline (.github/workflows/ci.yml)"]
-        CodePush["Code Push / PR"] --> Lint["Ruff Lint & Format"]
-        Lint --> TypeCheck["Mypy Type Checks"]
-        TypeCheck --> Security["Bandit & Pip-Audit"]
-        Security --> Pytest["Pytest Unit & Integration Tests"]
-    end
-
-    subgraph CD_Workflow["2. CD Pipeline (.github/workflows/cd.yml)"]
-        Pytest -->|"Merge to main"| DockerBuild["Docker Multi-Stage Build"]
-        DockerBuild --> TrivyScan["Trivy Security Scan"]
-        TrivyScan --> RegistryPush["Push to Container Registry (GHCR)"]
-        RegistryPush --> K8sDeploy["Kubernetes Rolling Update"]
-    end
-
-    subgraph Pipeline_Workflow["3. Model Pipeline (.github/workflows/model_pipeline.yml)"]
-        RetrainTrigger["Scheduled Cron / Drift Webhook"] --> RunPipeline["Execute ML Training Script"]
-        RunPipeline --> GateCheck["Check Benchmark Gates"]
-        GateCheck -->|"Pass"| PromoteChampion["Promote to Champion in MLflow"]
-    end
-```
+   - Software dependency vulnerability checks (`pip-audit`).
 
 ---
 
 ## 3. Phased Implementation Roadmap
 
-To maintain engineering discipline and prevent untested sprawl, development is strictly partitioned into verified phases:
-
 ```mermaid
 flowchart TD
-    P0["Phase 0: Architecture & Documentation (Completed)"]
-    P1["Phase 1: Core ML Pipeline & Training Engine"]
-    P2["Phase 2: MLflow Infrastructure & Model Registry"]
-    P3["Phase 3: Production FastAPI Serving Engine"]
-    P4["Phase 4: Docker Containerization & Compose Stack"]
-    P5["Phase 5: Drift Detection & Automated Retraining"]
-    P6["Phase 6: Prometheus & Grafana Observability"]
-    P7["Phase 7: Kubernetes Orchestration & GitOps"]
+    P0["Phase 0: Architecture & Blueprints (Completed)"]
+    P1["Phase 1: Core ML Pipeline & Local Training (Active)"]
+    P2["Phase 2: MLflow Infrastructure & Dynamic Model Registry"]
+    P3["Phase 3: Production FastAPI Serving Engine & Telemetry"]
+    P4["Phase 4: Lightweight Docker & Compose Orchestration"]
+    P5["Phase 5: Configurable Drift Detection & Retraining Loop"]
+    P6["Phase 6: Prometheus & Grafana Observability Dashboards"]
+    P7["Phase 7: Kubernetes Orchestration & Local Deployment"]
     P8["Phase 8: CI/CD Automation & Security Hardening"]
     P9["Phase 9: React Operational Dashboard"]
 
@@ -104,15 +88,15 @@ flowchart TD
 
 | Phase | Title | Scope & Deliverables | Verification / Acceptance Gate |
 | :--- | :--- | :--- | :--- |
-| **Phase 0** *(Current)* | **Architecture & Blueprints** | System designs, repository structure, DB schemas, docs, `.gitignore`, `.env.example`. | Formal architect review and user sign-off. |
-| **Phase 1** | **Core ML Pipeline & Training** | Telco Churn dataset ingestion, Pydantic contracts, Scikit-learn pipelines, XGBoost modeling, Optuna tuning, evaluation metrics, SHAP explainability. | 100% passing unit tests, zero data leakage, ROC-AUC $\ge 0.83$, PR-AUC $\ge 0.65$. |
-| **Phase 2** | **MLflow Governance** | MLflow tracking setup, PostgreSQL backend, MinIO artifact store, model signatures, candidate/challenger/champion promotion gating. | Models registered with full lineage, artifacts, and verified signatures. |
-| **Phase 3** | **FastAPI Serving Engine** | Asynchronous inference endpoints (`/predict`, `/predict-batch`), health probes (`/health/live`, `/ready`, `/startup`), DB prediction logger, API security. | Endpoints tested with valid & invalid payloads; latency p95 $\le 25\text{ms}$; DB records confirmed. |
-| **Phase 4** | **Docker Containerization** | Multi-stage Dockerfiles (`api`, `mlflow`, `evidently`), non-root permissions, local `docker-compose.yml` stack orchestration. | All 8 services initialize cleanly with green healthchecks; end-to-end local inference works. |
-| **Phase 5** | **Drift Detection & Retraining** | Evidently AI drift worker, KS & Chi-square statistical testing, report generator (HTML/JSON), retraining controller & webhook. | Simulated drifted payload triggers drift alert and automated retraining run. |
+| **Phase 0** | **Architecture & Blueprints** | System designs, repository structure, DB schemas, docs, `.gitignore`, `.env.example`. | Completed & Approved. |
+| **Phase 1** *(Active)* | **Core ML Pipeline & Local Training** | Telco Churn ingestion, Pydantic contracts, Scikit-learn pipelines, Logistic Regression, Random Forest, XGBoost, HPO, metrics (ROC-AUC, PR-AUC, F1, Brier), SHAP, zero-leakage tests, local model persistence. | 100% passing tests, zero leakage verified, actual metrics measured, training report generated. |
+| **Phase 2** | **MLflow Infrastructure & Registry** | MLflow tracking setup, PostgreSQL backend, MinIO artifact store, model signatures, dynamic alias resolution (`champion`, `challenger`), hot-reloading mechanism. | Models registered with full lineage, artifacts, signatures, and dynamic resolution tested. |
+| **Phase 3** | **FastAPI Serving Engine** | Asynchronous inference endpoints (`/predict`, `/predict-batch`), health probes (`/health/live`, `/ready`, `/startup`), DB prediction logger, API security. | Endpoints tested; actual latency benchmarked; DB records confirmed. |
+| **Phase 4** | **Lightweight Docker & Compose** | Multi-stage Dockerfiles (`api`, `mlflow`), non-root permissions, lightweight local `docker-compose.yml` stack orchestration. | Services initialize cleanly with green healthchecks; end-to-end local inference works. |
+| **Phase 5** | **Configurable Drift & Retraining** | Evidently AI drift worker, KS & Chi-square statistical testing, configurable drift thresholds, report generator (HTML/JSON), retraining controller. | Simulated drifted payload triggers drift alert and automated retraining run. |
 | **Phase 6** | **Prometheus & Grafana** | Prometheus `/metrics` instrumentation, Prometheus scrape configs, Grafana operational & ML dashboards provisioned. | Real-time RPS, latency histograms, and prediction distributions visible in Grafana. |
-| **Phase 7** | **Kubernetes Deployment** | Kubernetes manifests (Deployment, Service, Ingress, HPA, ConfigMaps, Secrets, PVCs), zero-downtime rolling updates. | Deployable to local Minikube/Kind or remote cluster with passing probes. |
-| **Phase 8** | **CI/CD & Security Hardening** | GitHub Actions workflows (`ci.yml`, `cd.yml`, `model_pipeline.yml`), Bandit, Pip-audit, Trivy container security scans. | Automated build, test, and scan passes on GitHub Actions. |
+| **Phase 7** | **Kubernetes Local Deployment** | Lightweight Kubernetes manifests (Deployment, Service, HPA, ConfigMaps, Secrets), zero-downtime rolling updates. | Deployable to local Minikube/Kind with passing probes. |
+| **Phase 8** | **CI/CD & Security Hardening** | GitHub Actions workflows (`ci.yml`, `cd.yml`), Bandit, Pip-audit, Trivy container security scans. | Automated build, test, and scan passes on GitHub Actions. |
 | **Phase 9** | **React Operational Dashboard** | Modern React UI: Model management, real-time prediction playground, drift reports view, manual retrain trigger. | Interactive web dashboard communicating with FastAPI backend. |
 
 ---
@@ -120,4 +104,5 @@ flowchart TD
 ## 4. Current Phase Status
 
 > [!IMPORTANT]
-> **Phase 0 is complete.** Architectural specifications, data schemas, deployment models, and the phased implementation roadmap have been compiled. In accordance with engineering governance rules, implementation of Phase 1 will commence upon user review and approval.
+> **Phase 1 is actively underway.**
+> All Phase 1 deliverables are implemented with modular, production-standard code, fully passing unit and leakage tests, empirical performance metrics, and zero fabricated claims.

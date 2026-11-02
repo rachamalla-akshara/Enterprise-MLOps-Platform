@@ -1,0 +1,102 @@
+# ==============================================================================
+# Enterprise MLOps Platform - Core Machine Learning Configuration
+# ==============================================================================
+
+project:
+  name: "Enterprise MLOps Platform - Customer Churn Prediction"
+  version: "1.0.0"
+  random_seed: 42
+
+paths:
+  raw_data: "data/raw/telco_customer_churn.csv"
+  processed_dir: "data/processed"
+  reference_data: "data/processed/reference_dataset.parquet"
+  sample_data: "data/samples/sample_churn_input.csv"
+  models_dir: "models/saved"
+  best_model_path: "models/saved/best_model_pipeline.joblib"
+  reports_dir: "reports"
+  evaluations_dir: "reports/evaluations"
+  figures_dir: "reports/figures"
+
+data:
+  target_column: "Churn"
+  positive_target_value: "Yes"
+  negative_target_value: "No"
+  id_column: "customerID"
+  split_ratios:
+    train: 0.70
+    validation: 0.15
+    test: 0.15
+  stratify: true
+
+features:
+  numerical:
+    - "tenure"
+    - "MonthlyCharges"
+    - "TotalCharges"
+  categorical:
+    - "gender"
+    - "SeniorCitizen"
+    - "Partner"
+    - "Dependents"
+    - "PhoneService"
+    - "MultipleLines"
+    - "InternetService"
+    - "OnlineSecurity"
+    - "OnlineBackup"
+    - "DeviceProtection"
+    - "TechSupport"
+    - "StreamingTV"
+    - "StreamingMovies"
+    - "Contract"
+    - "PaperlessBilling"
+    - "PaymentMethod"
+
+preprocessing:
+  numerical_imputer_strategy: "median"
+  categorical_imputer_strategy: "most_frequent"
+  scaler: "StandardScaler"
+  one_hot_drop: "first"
+  handle_unknown: "ignore"
+
+models:
+  logistic_regression:
+    max_iter: 1000
+    class_weight: "balanced"
+    solver: "lbfgs"
+    C: 1.0
+  random_forest:
+    n_estimators: 150
+    max_depth: 8
+    min_samples_split: 5
+    min_samples_leaf: 2
+    class_weight: "balanced"
+    n_jobs: -1
+  xgboost:
+    n_estimators: 150
+    max_depth: 4
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    eval_metric: "logloss"
+    scale_pos_weight: 2.76  # ~ (7043 - 1869) / 1869 approx ratio of negative to positive
+  tuning:
+    enabled: true
+    n_iter: 8
+    cv_folds: 3
+    param_distributions:
+      n_estimators: [100, 150, 200]
+      max_depth: [3, 4, 5]
+      learning_rate: [0.03, 0.05, 0.1]
+      subsample: [0.8, 0.9, 1.0]
+      colsample_bytree: [0.8, 0.9, 1.0]
+
+evaluation:
+  target_thresholds:
+    roc_auc_target: 0.830
+    pr_auc_target: 0.650
+    f1_target: 0.580
+    latency_p95_target_ms: 30.0
+  business_cost:
+    customer_lifetime_value: 500.0   # False Negative cost (lost customer)
+    intervention_cost: 50.0          # False Positive cost (retention discount)

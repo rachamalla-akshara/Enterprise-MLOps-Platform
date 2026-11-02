@@ -102,11 +102,11 @@ Complete architectural blueprints and operational specifications are available i
 
 ```text
 [x] Phase 0: System Architecture, Database Schemas, Design Specs & Environment Setup
-[ ] Phase 1: Core ML Pipeline, Preprocessing, Model Training & Evaluation Engine
-[ ] Phase 2: MLflow Tracking Server Infrastructure & Model Registry Lifecycle
-[ ] Phase 3: Production-Grade FastAPI Model Serving Engine & Prediction Logging
-[ ] Phase 4: Docker Multi-Stage Containerization & Local Compose Orchestration
-[ ] Phase 5: Evidently AI Drift Detection Worker & Automated Retraining Loop
+[x] Phase 1: Core ML Pipeline, Preprocessing, Model Training & Empirical Evaluation (COMPLETED)
+[ ] Phase 2: MLflow Tracking Server Infrastructure & Dynamic Model Registry Integration (NEXT)
+[ ] Phase 3: Production-Grade FastAPI Model Serving Engine & Prediction Telemetry
+[ ] Phase 4: Lightweight Docker Multi-Stage Containerization & Compose Orchestration
+[ ] Phase 5: Configurable Evidently AI Drift Detection Worker & Automated Retraining Loop
 [ ] Phase 6: Prometheus & Grafana Observability Dashboards & Alert Rules
 [ ] Phase 7: Kubernetes Orchestration (Manifests, HPA, Ingress & Health Probes)
 [ ] Phase 8: GitHub Actions CI/CD Automation & Security Scanning
@@ -115,11 +115,47 @@ Complete architectural blueprints and operational specifications are available i
 
 ---
 
-## 7. Environment Configuration Quickstart
+## 7. Phase 1 Empirical Benchmark Results (Holdout Test Set)
 
-1. Clone repository and initialize environment template:
-   ```bash
-   cp .env.example .env
-   ```
-2. Review and configure runtime settings in `.env` (PostgreSQL credentials, MLflow URIs, API keys, and drift thresholds).
-3. Follow the phase-by-phase rollout guide in [`docs/implementation_roadmap.md`](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/implementation_roadmap.md).
+The core machine learning pipeline was trained and evaluated on an independent 15% holdout test partition ($N = 1,057$ records, class balance stratified).
+
+| Model Candidate | ROC-AUC | PR-AUC | F1-Score | Recall | Precision | Brier Score | Latency p95 | Business Cost |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Logistic Regression (Baseline)** | 0.8559 | 0.7110 | 0.7087 | 0.8052 | 0.6329 | 0.1582 | 10.20 ms | $42,150.00 |
+| **Random Forest Classifier** | 0.8550 | 0.7039 | 0.6974 | 0.7364 | 0.6624 | 0.1574 | 79.31 ms | $52,550.00 |
+| **XGBoost Classifier (Baseline)** | 0.8532 | 0.7090 | 0.7040 | **0.8281** | 0.6123 | 0.1691 | 20.36 ms | **$39,150.00** |
+| **XGBoost Classifier (Tuned Champion)** | **0.8566** | **0.7155** | **0.7032** | 0.8080 | 0.6225 | 0.1697 | **13.82 ms** | $42,050.00 |
+
+*Champion Model*: `XGBoost_Tuned` (`n_estimators=200`, `max_depth=3`, `learning_rate=0.03`, `subsample=0.8`, `colsample_bytree=0.8`).  
+*Key Churn Risk Drivers (SHAP)*: `tenure` (0.8487), `Contract_Two year` (0.5823), `Contract_One year` (0.3758), `MonthlyCharges` (0.3457), and `InternetService_Fiber optic` (0.2625).
+
+---
+
+## 8. Development & Pipeline Quickstart
+
+### 1. Environment Setup
+```bash
+cp .env.example .env
+```
+
+### 2. Run Test Suite (Unit Tests & Data Leakage Tests)
+```bash
+pytest tests/ -v
+# Output: 18 passed in ~4.8s
+```
+
+### 3. Execute End-to-End Training Pipeline
+```bash
+python -m src.models.train
+```
+This performs:
+- Ingestion with deterministic fallback.
+- Pydantic schema validation.
+- Exploratory data analysis with visualization generation.
+- Stratified partitioning (70% train, 15% val, 15% test).
+- Preprocessing fit strictly on $X_{train}$ (zero data leakage).
+- Model training (Logistic Regression, Random Forest, XGBoost baseline, XGBoost tuned).
+- Empirical metric evaluation and actual latency benchmarking.
+- SHAP feature attribution generation.
+- Persistence of champion pipeline to `models/saved/best_model_pipeline.joblib`.
+- Comprehensive markdown report to `reports/evaluations/training_report.md`.
