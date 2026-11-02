@@ -76,4 +76,9 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
 EXPOSE 8000
 
 # Reliable production entrypoint
-CMD ["uvicorn", "src.serving.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Note on worker concurrency: A single worker (--workers 1) is strictly required for in-memory model lifecycle
+# management. Dynamic reload operations (/model/reload) update the ModelLoader state within process memory.
+# In a multi-worker setup without an IPC broadcast mechanism (e.g., Redis Pub/Sub), a reload request would
+# only update the worker that handled the HTTP request, leading to split-brain model divergence across workers.
+# Horizontal scaling is achieved across container replicas behind a load balancer, not via multi-worker Uvicorn.
+CMD ["uvicorn", "src.serving.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

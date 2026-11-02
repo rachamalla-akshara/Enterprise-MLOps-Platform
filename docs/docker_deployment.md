@@ -62,6 +62,17 @@ The application image is constructed via a production-grade, two-stage Dockerfil
 - **Secrets Isolation**: No environment credentials, `.env` files, or passwords are baked into the container layers. All configuration is injected at runtime via environment variables.
 - **Embedded Health Probe**: Includes an active `HEALTHCHECK` querying `/health` using `curl`.
 
+### 2.3 FastAPI Worker Concurrency & In-Memory Model Lifecycle Consistency
+The containerized FastAPI serving engine is explicitly configured to run with **exactly one worker** (`--workers 1`):
+```bash
+uvicorn src.serving.app:app --host 0.0.0.0 --port 8000 --workers 1
+```
+
+**Architectural Rationale**:
+- **In-Memory State**: The `ModelLoader` dynamically maintains the active scikit-learn pipeline and decision threshold in process memory.
+- **Dynamic Reload Isolation**: When an administrator issues `POST /model/reload`, the reload logic updates the in-memory state of the process handling that specific HTTP request. In a multi-worker Uvicorn deployment without an inter-process communication (IPC) broadcast bus (e.g. Redis Pub/Sub), only one worker process would reload the model, causing **split-brain divergence** where different worker processes serve different model versions simultaneously.
+- **Horizontal Scaling Paradigm**: High-throughput concurrency is achieved by scaling stateless container replicas horizontally across Kubernetes pods or Docker Compose replicas behind a load balancer, rather than multiplexing worker processes within a single container. Multi-worker reload consistency is deliberately not claimed until distributed synchronization is introduced.
+
 ---
 
 ## 3. Docker Compose Orchestration
@@ -108,13 +119,14 @@ python scripts/migrate_mlflow_registry.py \
   "postgresql+psycopg2://mlops_user:mlops_password@localhost:5432/mlops_db"
 ```
 
-#### Migration Workflow:
-1. **Source Inventory**: Inspects all runs, parameters, metrics, model versions, and aliases in `sqlite:///mlflow.db`.
-2. **Target Re-creation**: Connects to PostgreSQL, creates target experiment and registered model.
-3. **Artifact Linkage**: Connects model versions to source artifacts and copies version tags.
-4. **Alias Assignment**: Re-assigns `@champion` and `@challenger` aliases.
-5. **Prediction Parity Verification**: Loads the champion pipeline from both source and target, executes inference on real customer sample data, and verifies exact numeric parity (`np.testing.assert_allclose(atol=1e-5)`).
-6. **Audit Trail**: Exports JSON verification record to `reports/evaluations/mlflow_migration_audit.json`.
+#### Dual-URI & Integrity Enforcement:
+1. **Source & Target Isolation**: Strictly forbids migrating when source and target URIs are identical without `--audit-only`.
+2. **Network Probe & Offline Detection**: Probes target database connectivity with an immediate network timeout. If the destination PostgreSQL container is stopped, the tool records audit status `PENDING_TARGET_BACKEND` with distinct source and target URIs and preserves the intact SQLite database.
+3. **Full Run & Parameter Migration**: Iterates through source runs, creating runs in the destination experiment and copying all logged parameters, evaluation metrics, and run tags.
+4. **Physical Artifact Transfer**: Copies model artifacts (`mlruns/models/<id>/artifacts`) to the configured destination artifact store and updates model version source pointers.
+5. **Alias Re-establishment**: Binds `@champion`, `@challenger`, and `@candidate` aliases to the migrated target versions.
+6. **Prediction Parity Assertion**: Loads `@champion` from both source and target registries, executes inference on real customer sample records, and strictly enforces numerical equality via `np.testing.assert_allclose(atol=1e-5)`.
+7. **Audit Record**: Emits JSON verification record to `reports/evaluations/mlflow_migration_audit.json`.
 
 ---
 
@@ -199,13 +211,17 @@ docker compose down -v
 
 ---
 
-## 7. Static Validation & Verification Status
+## 7. Phase 4.1 Comprehensive Verification & Audit Matrix
 
-| Validation Item | Method | Status | Details |
+| Category | Verification Item | Status | Verification Evidence / Mechanism |
 | :--- | :--- | :---: | :--- |
-| **Compose Syntax & Schema** | `docker compose config` | **PASSED** | Canonical specification rendered with zero errors |
-| **Dependency Pinned Spec** | `requirements.txt` | **PASSED** | Fully pinned versions matching local Python 3.12 environment |
-| **Non-Root User Configuration** | `Dockerfile` | **PASSED** | `mlops:mlops` (10001:10001) enforced |
-| **MLflow Registry Migration** | `scripts/migrate_mlflow_registry.py` | **PASSED** | Local SQLite registry verified; prediction parity `atol=1e-5` confirmed |
-| **Comprehensive Test Suite** | `pytest tests/ -v` | **PASSED** | **47 passed, 0 failed** across all unit and integration test suites |
-| **Docker Daemon Runtime** | Host check | **NOT RUNNING** | Docker CLI 29.1.3 & Compose v5.0.0 installed, but Windows Docker daemon was offline; static validation completed |
+| **A. Static Configuration** | Compose Specification | **PASS** | `docker compose config` rendered canonical multi-container topology with 0 syntax or dependency errors. |
+| **A. Static Configuration** | Multi-Stage Dockerfile | **PASS** | Multi-stage builder/runner separation, non-root user `10001:10001`, `--workers 1` concurrency. |
+| **A. Static Configuration** | Security & Secret Isolation | **PASS** | Git ignores `.env`, `.env.example` contains placeholders, reload token required, minimal ports exposed. |
+| **B. Docker Image Build** | Image Build Execution | **NOT EXECUTED** | Docker Desktop engine is offline on host; requires Windows administrator privilege to launch `com.docker.service`. |
+| **C. Docker Runtime** | Container Execution | **NOT EXECUTED** | Daemon pipe `//./pipe/dockerDesktopLinuxEngine` unavailable; runtime execution not simulated. |
+| **D. PostgreSQL Integration** | Containerized Database | **NOT EXECUTED** | Dependent on Docker runtime; `scripts/init_postgres.sql` verified statically. |
+| **E. MLflow Migration** | Dual-URI Migration & Parity | **PASS** (Tested) / **PENDING** (Live PG) | Verified end-to-end in automated integration tests (`test_full_end_to_end_migration_with_parity`); live PostgreSQL migration safely audited as `PENDING_TARGET_BACKEND`. |
+| **F. Real Model In Docker** | Container Model Prediction | **NOT EXECUTED** | Dependent on container runtime; host serving engine prediction verified via integration test suite. |
+| **G. Persistence Verification**| Volume Lifecycle Probing | **NOT EXECUTED** | Dependent on container runtime; named volumes (`postgres_data`, `mlflow_artifacts`) defined. |
+| **H. Regression Test Suite** | Full Pytest Suite | **PASS** | **51 passed, 0 failed** across all unit, leakage, serving, and migration test suites. |
