@@ -123,3 +123,14 @@ evaluation:
   business_cost:
     customer_lifetime_value: 500.0   # False Negative cost (lost customer)
     intervention_cost: 50.0          # False Positive cost (retention discount)
+
+serving:
+  host: "127.0.0.1"
+  port: 8000
+  model_alias: "champion"
+  decision_threshold: 0.571
+  reload_token: "dev-admin-secret-key-phase3"
+  enable_reload_endpoint: true
+  auto_reload_interval_seconds: 0
+  prediction_db_uri: "sqlite:///predictions.db"
+

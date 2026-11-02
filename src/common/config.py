@@ -141,6 +141,17 @@ class MLflowConfig(BaseModel):
     gating: MLflowGatingConfig = Field(default_factory=MLflowGatingConfig)
 
 
+class ServingConfig(BaseModel):
+    host: str = "127.0.0.1"
+    port: int = 8000
+    model_alias: str = "champion"
+    decision_threshold: float = 0.571
+    reload_token: str = "dev-admin-secret-key-phase3"
+    enable_reload_endpoint: bool = True
+    auto_reload_interval_seconds: int = 0
+    prediction_db_uri: str = "sqlite:///predictions.db"
+
+
 class AppConfig(BaseModel):
     project: ProjectConfig
     paths: PathsConfig
@@ -150,6 +161,7 @@ class AppConfig(BaseModel):
     mlflow: MLflowConfig = Field(default_factory=MLflowConfig)
     models: ModelsConfig
     evaluation: EvaluationConfig
+    serving: ServingConfig = Field(default_factory=ServingConfig)
 
 
 _cached_config: Optional[AppConfig] = None

@@ -93,6 +93,7 @@ Complete architectural blueprints and operational specifications are available i
 - [**ML Pipeline & Model Governance (`docs/ml_pipeline.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/ml_pipeline.md): Data ingestion, feature transformations, candidate models, evaluation metrics, and acceptance gates.
 - [**MLflow Tracking & Registry Design (`docs/mlflow_design.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/mlflow_design.md): Experiment organization, run metadata schema, model signatures, and promotion policies.
 - [**MLflow Implementation & Operations (`docs/mlflow_implementation.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/mlflow_implementation.md): Complete implementation guide covering SQLite tracking, cloudpickle logging, promotion gating, rollback, and dynamic alias resolution.
+- [**FastAPI Model Serving & Telemetry (`docs/fastapi_serving.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/fastapi_serving.md): High-throughput REST API serving engine, dynamic MLflow alias loading, atomic model reloads, and telemetry logging.
 - [**Deployment Architecture (`docs/deployment_design.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/deployment_design.md): Multi-stage Dockerfiles, Docker Compose topology, Kubernetes manifests, HPA, and rolling update strategies.
 - [**Monitoring & Drift Detection (`docs/monitoring_design.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/monitoring_design.md): Prometheus metrics catalog, Grafana dashboards, Evidently AI statistical tests, and automated retraining triggers.
 - [**Implementation Roadmap & Testing (`docs/implementation_roadmap.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/implementation_roadmap.md): Multi-phase development roadmap, unit/integration/stress testing strategy, and GitHub Actions CI/CD workflows.
@@ -106,8 +107,8 @@ Complete architectural blueprints and operational specifications are available i
 [x] Phase 1: Core ML Pipeline, Preprocessing, Baseline Models & Zero-Leakage Architecture
 [x] Phase 1.1: Real-Data Canonical Validation & Provenance Verification (COMPLETED)
 [x] Phase 2: MLflow Tracking Server Infrastructure & Dynamic Model Registry Integration (COMPLETED)
-[ ] Phase 3: Production-Grade FastAPI Model Serving Engine & Prediction Telemetry (NEXT)
-[ ] Phase 4: Lightweight Docker Multi-Stage Containerization & Compose Orchestration
+[x] Phase 3: Production-Grade FastAPI Model Serving Engine & Prediction Telemetry (COMPLETED)
+[ ] Phase 4: Lightweight Docker Multi-Stage Containerization & Compose Orchestration (NEXT)
 [ ] Phase 5: Configurable Evidently AI Drift Detection Worker & Automated Retraining Loop
 [ ] Phase 6: Prometheus & Grafana Observability Dashboards & Alert Rules
 [ ] Phase 7: Kubernetes Orchestration (Manifests, HPA, Ingress & Health Probes)
@@ -149,10 +150,10 @@ The platform was validated and benchmarked strictly against the genuine, canonic
 cp .env.example .env
 ```
 
-### 2. Run Test Suite (Unit, Leakage, Validation & MLflow Registry Tests)
+### 2. Run Test Suite (Unit, Leakage, Validation, MLflow Registry & Serving Tests)
 ```bash
 python -m pytest tests/ -v
-# Output: 25 passed, 0 failed in ~2.5m
+# Output: 47 passed, 0 failed in ~1.5m
 ```
 
 ### 3. Execute End-to-End Real-Data Training & MLflow Pipeline
@@ -179,3 +180,60 @@ This executes:
 mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
 ```
 Open `http://localhost:5000` to inspect runs, metric curves, model artifacts, and registry aliases.
+
+### 5. Launch FastAPI Model Serving Engine
+```bash
+uvicorn src.serving.app:app --host 127.0.0.1 --port 8000 --reload
+```
+Interactive API documentation:
+- **Swagger UI**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **ReDoc**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+
+#### Example Prediction Request:
+```bash
+curl -X POST http://127.0.0.1:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "gender": "Female",
+    "SeniorCitizen": 0,
+    "Partner": "Yes",
+    "Dependents": "No",
+    "tenure": 12,
+    "PhoneService": "Yes",
+    "MultipleLines": "No",
+    "InternetService": "Fiber optic",
+    "OnlineSecurity": "No",
+    "OnlineBackup": "No",
+    "DeviceProtection": "No",
+    "TechSupport": "No",
+    "StreamingTV": "Yes",
+    "StreamingMovies": "No",
+    "Contract": "Month-to-month",
+    "PaperlessBilling": "Yes",
+    "PaymentMethod": "Electronic check",
+    "MonthlyCharges": 79.85,
+    "TotalCharges": 958.2
+  }'
+```
+
+#### Example Response:
+```json
+{
+  "request_id": "8aa165ea-edb8-4033-ae10-229062ff2067",
+  "prediction": "No Churn",
+  "churn_probability": 0.4812,
+  "decision_threshold": 0.571,
+  "model_name": "customer-churn-classifier",
+  "model_version": "4",
+  "inference_latency_ms": 22.88,
+  "prediction_timestamp": "2026-11-02T14:19:03.123456+00:00"
+}
+```
+
+#### Trigger Protected Model Reload:
+```bash
+curl -X POST http://127.0.0.1:8000/model/reload \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-API-Key: dev-admin-secret-key-phase3" \
+  -d '{"alias": "champion"}'
+```
