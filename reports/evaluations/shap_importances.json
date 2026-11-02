@@ -3,64 +3,64 @@
   "evaluated_samples": 300,
   "top_features": [
     {
-      "feature": "tenure",
-      "mean_abs_shap": 0.84873
-    },
-    {
       "feature": "Contract_Two year",
-      "mean_abs_shap": 0.5823
+      "mean_abs_shap": 0.54704
     },
     {
-      "feature": "Contract_One year",
-      "mean_abs_shap": 0.37583
-    },
-    {
-      "feature": "MonthlyCharges",
-      "mean_abs_shap": 0.34571
+      "feature": "tenure",
+      "mean_abs_shap": 0.46051
     },
     {
       "feature": "InternetService_Fiber optic",
-      "mean_abs_shap": 0.26254
+      "mean_abs_shap": 0.30189
+    },
+    {
+      "feature": "Contract_One year",
+      "mean_abs_shap": 0.24733
+    },
+    {
+      "feature": "MonthlyCharges",
+      "mean_abs_shap": 0.20407
     },
     {
       "feature": "PaymentMethod_Electronic check",
-      "mean_abs_shap": 0.13149
+      "mean_abs_shap": 0.18291
     },
     {
       "feature": "TotalCharges",
-      "mean_abs_shap": 0.1011
-    },
-    {
-      "feature": "OnlineSecurity_Yes",
-      "mean_abs_shap": 0.06593
-    },
-    {
-      "feature": "TechSupport_Yes",
-      "mean_abs_shap": 0.05302
-    },
-    {
-      "feature": "Dependents_Yes",
-      "mean_abs_shap": 0.05179
-    },
-    {
-      "feature": "MultipleLines_Yes",
-      "mean_abs_shap": 0.02021
+      "mean_abs_shap": 0.13377
     },
     {
       "feature": "InternetService_No",
-      "mean_abs_shap": 0.01969
-    },
-    {
-      "feature": "OnlineSecurity_No internet service",
-      "mean_abs_shap": 0.00929
-    },
-    {
-      "feature": "DeviceProtection_Yes",
-      "mean_abs_shap": 0.00853
+      "mean_abs_shap": 0.12366
     },
     {
       "feature": "PaperlessBilling_Yes",
-      "mean_abs_shap": 0.00708
+      "mean_abs_shap": 0.11972
+    },
+    {
+      "feature": "OnlineSecurity_Yes",
+      "mean_abs_shap": 0.09251
+    },
+    {
+      "feature": "TechSupport_Yes",
+      "mean_abs_shap": 0.08953
+    },
+    {
+      "feature": "StreamingMovies_Yes",
+      "mean_abs_shap": 0.07807
+    },
+    {
+      "feature": "StreamingTV_Yes",
+      "mean_abs_shap": 0.06712
+    },
+    {
+      "feature": "Dependents_Yes",
+      "mean_abs_shap": 0.04907
+    },
+    {
+      "feature": "SeniorCitizen_1",
+      "mean_abs_shap": 0.0366
     }
   ]
 }

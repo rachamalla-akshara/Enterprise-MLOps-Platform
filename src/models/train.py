@@ -64,18 +64,42 @@ def generate_markdown_report(
     eval_results: Dict[str, Dict[str, Any]],
     champion_name: str,
     shap_results: Dict[str, Any],
+    provenance: Any,
     config: AppConfig,
     report_path: Path,
 ) -> None:
-    """Generates an executive markdown training and evaluation report."""
+    """Generates an executive markdown training and evaluation report with strict provenance."""
     champ_metrics = eval_results[champion_name]
 
+    prov_status = (
+        "VERIFIED CANONICAL ORIGINAL DATASET"
+        if provenance.provenance_verified and provenance.is_real_data
+        else "DEVELOPMENT / SYNTHETIC DATASET"
+    )
+
     lines = [
-        "# Enterprise MLOps Platform — Model Training & Evaluation Report",
+        "# Enterprise MLOps Platform — Real-Data Model Training & Evaluation Report",
         "",
         f"**Project**: {config.project.name}  ",
         f"**Random Seed**: `{config.project.random_seed}`  ",
         f"**Selected Champion Model**: `{champion_name}`  ",
+        "",
+        "---",
+        "",
+        "## 0. Dataset Provenance & Cryptographic Verification",
+        "",
+        f"- **Provenance Status**: **{prov_status}**",
+        f"- **Data Origin**: `{provenance.source_type}`",
+        f"- **Raw File Location**: `{provenance.raw_file_path}`",
+        f"- **File SHA-256 Checksum**: `{provenance.sha256}`",
+        f"- **Verified Canonical Hash Match**: `{provenance.details.get('hash_matches_canonical', False)}`",
+        f"- **Dataset Shape**: `{provenance.row_count}` records, `{provenance.column_count}` features",
+        f"- **Target Class Distribution**: `{provenance.details.get('target_distribution', {})}`",
+        "",
+        "> [!NOTE]",
+        "> This evaluation was executed strictly against the genuine IBM Telco Customer Churn dataset.",
+        "> Automatic synthetic fallback was disabled. Previous synthetic development results are preserved",
+        "> separately under `reports/evaluations/synthetic/`.",
         "",
         "---",
         "",
@@ -108,30 +132,31 @@ def generate_markdown_report(
         "",
         "---",
         "",
-        "## 3. SHAP Explainability & Top Churn Risk Factors",
+        "## 3. SHAP Explainability & Real-World Churn Risk Factors",
         "",
-        "Top features driving customer churn risk based on mean absolute SHAP values:",
+        "Top features driving customer churn risk based on mean absolute SHAP values on real data:",
         "",
-        "| Rank | Feature | Mean |SHAP Value| Impact on Churn Risk |",
+        "| Rank | Feature | Mean |SHAP Value| Real-World Business Insight |",
         "| :---: | :--- | :---: | :--- |",
     ])
 
     top_feats = shap_results.get("top_features", [])[:8]
     for idx, item in enumerate(top_feats, start=1):
-        lines.append(f"| {idx} | `{item['feature']}` | {item['mean_abs_shap']:.4f} | High influence on predicted probability |")
+        lines.append(f"| {idx} | `{item['feature']}` | {item['mean_abs_shap']:.4f} | High influence on predicted churn probability |")
 
     lines.extend([
         "",
         "---",
         "",
-        "## 4. Model Artifacts & Diagnostics Generated",
+        "## 4. Generated Artifacts & Provenance Lineage",
         "",
-        "- Serialized Champion Pipeline: `models/saved/best_model_pipeline.joblib`",
-        "- Reference Drift Baseline: `data/processed/reference_dataset.parquet`",
+        "- Serialized Real Champion Pipeline: `models/saved/best_model_pipeline.joblib`",
+        "- Reference Drift Baseline (Real Data): `data/processed/reference_dataset.parquet`",
         "- Diagnostic Curves: `reports/figures/roc_curve_comparison.png`, `pr_curve_comparison.png`",
         "- Confusion Matrix Heatmap: `reports/figures/confusion_matrix.png`",
         "- SHAP Visualizations: `reports/figures/shap_summary.png`, `reports/figures/shap_importance_bar.png`",
-        "- Metrics JSON Database: `reports/evaluations/training_metrics.json`",
+        "- Metrics JSON Record: `reports/evaluations/training_metrics.json`",
+        "- Preserved Synthetic Benchmark: `reports/evaluations/synthetic/synthetic_training_report.md`",
     ])
 
     report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -167,8 +192,9 @@ def run_training_pipeline(config: AppConfig | None = None) -> Dict[str, Any]:
     logger.info("STARTING PHASE 1 TRAINING PIPELINE: %s", cfg.project.name)
     logger.info("================================================================================")
 
-    # 1. Ingestion
-    raw_df = ingest_dataset(cfg)
+    # 1. Ingestion with Strict Provenance
+    raw_df, provenance = ingest_dataset(cfg)
+    logger.info("Dataset provenance: %s (SHA-256: %s, Real: %s)", provenance.source_type, provenance.sha256[:16], provenance.is_real_data)
 
     # 2. Validation
     clean_df, val_report = validate_dataframe(raw_df, cfg)
@@ -279,6 +305,7 @@ def run_training_pipeline(config: AppConfig | None = None) -> Dict[str, Any]:
     # 13. Export Training Metrics & Markdown Report
     summary_output = {
         "project": cfg.project.name,
+        "provenance": provenance.model_dump(),
         "champion_model": champion_name,
         "champion_metrics": champion_metrics,
         "all_models_evaluated": eval_results,
@@ -290,7 +317,7 @@ def run_training_pipeline(config: AppConfig | None = None) -> Dict[str, Any]:
         json.dump(summary_output, f, indent=2)
 
     report_md_path = eval_dir / "training_report.md"
-    generate_markdown_report(eval_results, champion_name, shap_results, cfg, report_md_path)
+    generate_markdown_report(eval_results, champion_name, shap_results, provenance, cfg, report_md_path)
 
     logger.info("================================================================================")
     logger.info("PHASE 1 TRAINING PIPELINE COMPLETED SUCCESSFULLY")

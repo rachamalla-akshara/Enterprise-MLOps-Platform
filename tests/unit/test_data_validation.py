@@ -105,3 +105,33 @@ def test_validate_dataframe_valid_data(clean_churn_df: pd.DataFrame, test_config
     assert report.is_valid is True
     assert len(df_res) == len(clean_churn_df)
     assert report.total_records == len(clean_churn_df)
+
+
+def test_strict_provenance_validation_real_dataset(test_config: AppConfig):
+    """Tests that real dataset passes strict canonical provenance verification."""
+    from pathlib import Path
+    from src.data.loader import validate_dataset_provenance, CANONICAL_IBM_TELCO_SHA256
+    from src.common.config import find_project_root
+
+    root = find_project_root()
+    real_path = root / test_config.paths.raw_data
+
+    if real_path.is_file():
+        df, prov = validate_dataset_provenance(real_path, test_config)
+        assert prov.is_real_data is True
+        assert prov.row_count == 7043
+        assert prov.column_count == 21
+        assert prov.sha256 == CANONICAL_IBM_TELCO_SHA256
+        assert prov.provenance_verified is True
+
+
+def test_strict_provenance_missing_file_raises_error(test_config: AppConfig):
+    """Tests that a missing real dataset raises DataIngestionError rather than silently falling back."""
+    from pathlib import Path
+    from src.data.loader import validate_dataset_provenance
+    from src.common.exceptions import DataIngestionError
+
+    fake_path = Path("non_existent_raw_path.csv")
+    with pytest.raises(DataIngestionError) as exc_info:
+        validate_dataset_provenance(fake_path, test_config)
+    assert "PROVENANCE REMEDIATION" in str(exc_info.value)

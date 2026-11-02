@@ -1,160 +1,177 @@
 {
   "project": "Enterprise MLOps Platform - Customer Churn Prediction",
+  "provenance": {
+    "source_type": "canonical_ibm_telco_churn",
+    "raw_file_path": "C:\\Users\\raksh\\.gemini\\antigravity\\scratch\\Enterprise-MLOps-Platform\\data\\raw\\telco_customer_churn.csv",
+    "sha256": "16320c9c1ec72448db59aa0a26a0b95401046bef5d02fd3aeb906448e3055e91",
+    "row_count": 7043,
+    "column_count": 21,
+    "provenance_verified": true,
+    "is_real_data": true,
+    "details": {
+      "canonical_sha256": "16320c9c1ec72448db59aa0a26a0b95401046bef5d02fd3aeb906448e3055e91",
+      "hash_matches_canonical": true,
+      "target_distribution": {
+        "No": 5174,
+        "Yes": 1869
+      }
+    }
+  },
   "champion_model": "XGBoost_Tuned",
   "champion_metrics": {
     "model_name": "XGBoost_Tuned",
-    "decision_threshold": 0.592,
-    "roc_auc": 0.8566,
-    "pr_auc": 0.7155,
-    "f1": 0.7032,
-    "precision": 0.6225,
-    "recall": 0.808,
-    "accuracy": 0.7748,
-    "brier_score": 0.1697,
-    "optimal_threshold": 0.558,
-    "optimal_f1": 0.7082,
+    "decision_threshold": 0.57,
+    "roc_auc": 0.8536,
+    "pr_auc": 0.6697,
+    "f1": 0.6486,
+    "precision": 0.5596,
+    "recall": 0.7714,
+    "accuracy": 0.7786,
+    "brier_score": 0.1611,
+    "optimal_threshold": 0.571,
+    "optimal_f1": 0.6506,
     "confusion_matrix": {
-      "tn": 537,
-      "fp": 171,
-      "fn": 67,
-      "tp": 282
+      "tn": 607,
+      "fp": 170,
+      "fn": 64,
+      "tp": 216
     },
     "business_cost": {
       "customer_lifetime_value": 500.0,
       "intervention_cost": 50.0,
-      "total_cost": 42050.0,
-      "avg_cost_per_customer": 39.78
+      "total_cost": 40500.0,
+      "avg_cost_per_customer": 38.32
     },
     "latency_benchmark": {
-      "mean_ms": 12.362,
-      "p50_ms": 12.083,
-      "p95_ms": 13.816,
-      "p99_ms": 15.968
+      "mean_ms": 12.482,
+      "p50_ms": 12.143,
+      "p95_ms": 14.508,
+      "p99_ms": 16.456
     }
   },
   "all_models_evaluated": {
     "Logistic_Regression": {
       "model_name": "Logistic_Regression",
-      "decision_threshold": 0.555,
-      "roc_auc": 0.8559,
-      "pr_auc": 0.711,
-      "f1": 0.7087,
-      "precision": 0.6329,
-      "recall": 0.8052,
-      "accuracy": 0.7815,
-      "brier_score": 0.1582,
-      "optimal_threshold": 0.552,
-      "optimal_f1": 0.7103,
+      "decision_threshold": 0.567,
+      "roc_auc": 0.8492,
+      "pr_auc": 0.6418,
+      "f1": 0.6289,
+      "precision": 0.5396,
+      "recall": 0.7536,
+      "accuracy": 0.7644,
+      "brier_score": 0.1668,
+      "optimal_threshold": 0.579,
+      "optimal_f1": 0.6344,
       "confusion_matrix": {
-        "tn": 545,
-        "fp": 163,
-        "fn": 68,
-        "tp": 281
+        "tn": 597,
+        "fp": 180,
+        "fn": 69,
+        "tp": 211
       },
       "business_cost": {
         "customer_lifetime_value": 500.0,
         "intervention_cost": 50.0,
-        "total_cost": 42150.0,
-        "avg_cost_per_customer": 39.88
+        "total_cost": 43500.0,
+        "avg_cost_per_customer": 41.15
       },
       "latency_benchmark": {
-        "mean_ms": 9.4,
-        "p50_ms": 9.337,
-        "p95_ms": 10.202,
-        "p99_ms": 10.738
+        "mean_ms": 9.369,
+        "p50_ms": 9.176,
+        "p95_ms": 10.687,
+        "p99_ms": 12.747
       }
     },
     "Random_Forest": {
       "model_name": "Random_Forest",
-      "decision_threshold": 0.595,
-      "roc_auc": 0.855,
-      "pr_auc": 0.7039,
-      "f1": 0.6974,
-      "precision": 0.6624,
-      "recall": 0.7364,
-      "accuracy": 0.789,
-      "brier_score": 0.1574,
-      "optimal_threshold": 0.506,
-      "optimal_f1": 0.7041,
+      "decision_threshold": 0.541,
+      "roc_auc": 0.8501,
+      "pr_auc": 0.6567,
+      "f1": 0.6372,
+      "precision": 0.5427,
+      "recall": 0.7714,
+      "accuracy": 0.7673,
+      "brier_score": 0.161,
+      "optimal_threshold": 0.615,
+      "optimal_f1": 0.6512,
       "confusion_matrix": {
-        "tn": 577,
-        "fp": 131,
-        "fn": 92,
-        "tp": 257
+        "tn": 595,
+        "fp": 182,
+        "fn": 64,
+        "tp": 216
       },
       "business_cost": {
         "customer_lifetime_value": 500.0,
         "intervention_cost": 50.0,
-        "total_cost": 52550.0,
-        "avg_cost_per_customer": 49.72
+        "total_cost": 41100.0,
+        "avg_cost_per_customer": 38.88
       },
       "latency_benchmark": {
-        "mean_ms": 63.983,
-        "p50_ms": 60.906,
-        "p95_ms": 79.314,
-        "p99_ms": 113.432
+        "mean_ms": 61.022,
+        "p50_ms": 60.12,
+        "p95_ms": 68.284,
+        "p99_ms": 82.997
       }
     },
     "XGBoost_Baseline": {
       "model_name": "XGBoost_Baseline",
-      "decision_threshold": 0.536,
-      "roc_auc": 0.8532,
-      "pr_auc": 0.709,
-      "f1": 0.704,
-      "precision": 0.6123,
-      "recall": 0.8281,
-      "accuracy": 0.7701,
-      "brier_score": 0.1691,
-      "optimal_threshold": 0.545,
-      "optimal_f1": 0.7083,
+      "decision_threshold": 0.51,
+      "roc_auc": 0.8508,
+      "pr_auc": 0.6655,
+      "f1": 0.6313,
+      "precision": 0.5276,
+      "recall": 0.7857,
+      "accuracy": 0.7569,
+      "brier_score": 0.1597,
+      "optimal_threshold": 0.654,
+      "optimal_f1": 0.6426,
       "confusion_matrix": {
-        "tn": 525,
-        "fp": 183,
+        "tn": 580,
+        "fp": 197,
         "fn": 60,
-        "tp": 289
+        "tp": 220
       },
       "business_cost": {
         "customer_lifetime_value": 500.0,
         "intervention_cost": 50.0,
-        "total_cost": 39150.0,
-        "avg_cost_per_customer": 37.04
+        "total_cost": 39850.0,
+        "avg_cost_per_customer": 37.7
       },
       "latency_benchmark": {
-        "mean_ms": 16.897,
-        "p50_ms": 16.254,
-        "p95_ms": 20.363,
-        "p99_ms": 26.829
+        "mean_ms": 16.83,
+        "p50_ms": 16.479,
+        "p95_ms": 18.9,
+        "p99_ms": 22.864
       }
     },
     "XGBoost_Tuned": {
       "model_name": "XGBoost_Tuned",
-      "decision_threshold": 0.592,
-      "roc_auc": 0.8566,
-      "pr_auc": 0.7155,
-      "f1": 0.7032,
-      "precision": 0.6225,
-      "recall": 0.808,
-      "accuracy": 0.7748,
-      "brier_score": 0.1697,
-      "optimal_threshold": 0.558,
-      "optimal_f1": 0.7082,
+      "decision_threshold": 0.57,
+      "roc_auc": 0.8536,
+      "pr_auc": 0.6697,
+      "f1": 0.6486,
+      "precision": 0.5596,
+      "recall": 0.7714,
+      "accuracy": 0.7786,
+      "brier_score": 0.1611,
+      "optimal_threshold": 0.571,
+      "optimal_f1": 0.6506,
       "confusion_matrix": {
-        "tn": 537,
-        "fp": 171,
-        "fn": 67,
-        "tp": 282
+        "tn": 607,
+        "fp": 170,
+        "fn": 64,
+        "tp": 216
       },
       "business_cost": {
         "customer_lifetime_value": 500.0,
         "intervention_cost": 50.0,
-        "total_cost": 42050.0,
-        "avg_cost_per_customer": 39.78
+        "total_cost": 40500.0,
+        "avg_cost_per_customer": 38.32
       },
       "latency_benchmark": {
-        "mean_ms": 12.362,
-        "p50_ms": 12.083,
-        "p95_ms": 13.816,
-        "p99_ms": 15.968
+        "mean_ms": 12.482,
+        "p50_ms": 12.143,
+        "p95_ms": 14.508,
+        "p99_ms": 16.456
       }
     }
   },
@@ -163,64 +180,64 @@
     "evaluated_samples": 300,
     "top_features": [
       {
-        "feature": "tenure",
-        "mean_abs_shap": 0.84873
-      },
-      {
         "feature": "Contract_Two year",
-        "mean_abs_shap": 0.5823
+        "mean_abs_shap": 0.54704
       },
       {
-        "feature": "Contract_One year",
-        "mean_abs_shap": 0.37583
-      },
-      {
-        "feature": "MonthlyCharges",
-        "mean_abs_shap": 0.34571
+        "feature": "tenure",
+        "mean_abs_shap": 0.46051
       },
       {
         "feature": "InternetService_Fiber optic",
-        "mean_abs_shap": 0.26254
+        "mean_abs_shap": 0.30189
+      },
+      {
+        "feature": "Contract_One year",
+        "mean_abs_shap": 0.24733
+      },
+      {
+        "feature": "MonthlyCharges",
+        "mean_abs_shap": 0.20407
       },
       {
         "feature": "PaymentMethod_Electronic check",
-        "mean_abs_shap": 0.13149
+        "mean_abs_shap": 0.18291
       },
       {
         "feature": "TotalCharges",
-        "mean_abs_shap": 0.1011
-      },
-      {
-        "feature": "OnlineSecurity_Yes",
-        "mean_abs_shap": 0.06593
-      },
-      {
-        "feature": "TechSupport_Yes",
-        "mean_abs_shap": 0.05302
-      },
-      {
-        "feature": "Dependents_Yes",
-        "mean_abs_shap": 0.05179
-      },
-      {
-        "feature": "MultipleLines_Yes",
-        "mean_abs_shap": 0.02021
+        "mean_abs_shap": 0.13377
       },
       {
         "feature": "InternetService_No",
-        "mean_abs_shap": 0.01969
-      },
-      {
-        "feature": "OnlineSecurity_No internet service",
-        "mean_abs_shap": 0.00929
-      },
-      {
-        "feature": "DeviceProtection_Yes",
-        "mean_abs_shap": 0.00853
+        "mean_abs_shap": 0.12366
       },
       {
         "feature": "PaperlessBilling_Yes",
-        "mean_abs_shap": 0.00708
+        "mean_abs_shap": 0.11972
+      },
+      {
+        "feature": "OnlineSecurity_Yes",
+        "mean_abs_shap": 0.09251
+      },
+      {
+        "feature": "TechSupport_Yes",
+        "mean_abs_shap": 0.08953
+      },
+      {
+        "feature": "StreamingMovies_Yes",
+        "mean_abs_shap": 0.07807
+      },
+      {
+        "feature": "StreamingTV_Yes",
+        "mean_abs_shap": 0.06712
+      },
+      {
+        "feature": "Dependents_Yes",
+        "mean_abs_shap": 0.04907
+      },
+      {
+        "feature": "SeniorCitizen_1",
+        "mean_abs_shap": 0.0366
       }
     ]
   }

@@ -19,6 +19,11 @@ paths:
   figures_dir: "reports/figures"
 
 data:
+  dataset_type: "real"                 # "real" | "synthetic"
+  allow_synthetic_fallback: false      # NEVER silently fall back to synthetic data in real evaluation
+  expected_sha256: "16320c9c1ec72448db59aa0a26a0b95401046bef5d02fd3aeb906448e3055e91"
+  expected_rows: 7043
+  expected_cols: 21
   target_column: "Churn"
   positive_target_value: "Yes"
   negative_target_value: "No"

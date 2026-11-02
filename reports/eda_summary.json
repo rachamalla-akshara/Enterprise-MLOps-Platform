@@ -3,62 +3,62 @@
   "features_count": 21,
   "target_distribution": {
     "counts": {
-      "No": 4719,
-      "Yes": 2324
+      "No": 5174,
+      "Yes": 1869
     },
     "percentages": {
-      "No": 67.0,
-      "Yes": 33.0
+      "No": 73.46,
+      "Yes": 26.54
     },
-    "churn_rate_percent": 33.0
+    "churn_rate_percent": 26.54
   },
   "numerical_statistics": {
     "tenure": {
-      "mean": 32.41,
-      "std": 25.19,
-      "median": 26.0,
+      "mean": 32.37,
+      "std": 24.56,
+      "median": 29.0,
       "min": 0.0,
       "max": 72.0,
       "missing": 0
     },
     "MonthlyCharges": {
-      "mean": 73.84,
-      "std": 25.02,
-      "median": 80.13,
+      "mean": 64.76,
+      "std": 30.09,
+      "median": 70.35,
       "min": 18.25,
       "max": 118.75,
       "missing": 0
     },
     "TotalCharges": {
-      "mean": 2483.06,
-      "std": 2108.23,
-      "median": 1767.2,
-      "min": 21.24,
-      "max": 8194.08,
-      "missing": 265
+      "mean": 2283.3,
+      "std": 2266.77,
+      "median": 1397.47,
+      "min": 18.8,
+      "max": 8684.8,
+      "missing": 11
     }
   },
   "churn_rate_by_category": {
     "Contract": {
-      "Month-to-month": 55.71,
-      "One year": 18.16,
-      "Two year": 4.36
+      "Month-to-month": 42.71,
+      "One year": 11.27,
+      "Two year": 2.83
     },
     "InternetService": {
-      "DSL": 30.67,
-      "Fiber optic": 41.98,
-      "No": 18.42
+      "DSL": 18.96,
+      "Fiber optic": 41.89,
+      "No": 7.4
     },
     "PaymentMethod": {
-      "Bank transfer (automatic)": 31.51,
-      "Credit card (automatic)": 29.87,
-      "Electronic check": 37.28,
-      "Mailed check": 31.15
+      "Bank transfer (automatic)": 16.71,
+      "Credit card (automatic)": 15.24,
+      "Electronic check": 45.29,
+      "Mailed check": 19.11
     },
     "TechSupport": {
-      "No": 38.04,
-      "No internet service": 18.42,
-      "Yes": 35.29
+      "No": 41.64,
+      "No internet service": 7.4,
+      "Yes": 15.17
     }
   }
 }

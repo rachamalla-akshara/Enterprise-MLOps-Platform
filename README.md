@@ -102,7 +102,8 @@ Complete architectural blueprints and operational specifications are available i
 
 ```text
 [x] Phase 0: System Architecture, Database Schemas, Design Specs & Environment Setup
-[x] Phase 1: Core ML Pipeline, Preprocessing, Model Training & Empirical Evaluation (COMPLETED)
+[x] Phase 1: Core ML Pipeline, Preprocessing, Baseline Models & Zero-Leakage Architecture
+[x] Phase 1.1: Real-Data Canonical Validation & Provenance Verification (COMPLETED)
 [ ] Phase 2: MLflow Tracking Server Infrastructure & Dynamic Model Registry Integration (NEXT)
 [ ] Phase 3: Production-Grade FastAPI Model Serving Engine & Prediction Telemetry
 [ ] Phase 4: Lightweight Docker Multi-Stage Containerization & Compose Orchestration
@@ -115,19 +116,28 @@ Complete architectural blueprints and operational specifications are available i
 
 ---
 
-## 7. Phase 1 Empirical Benchmark Results (Holdout Test Set)
+## 7. Real-Data Empirical Benchmark Results (Holdout Test Set)
 
-The core machine learning pipeline was trained and evaluated on an independent 15% holdout test partition ($N = 1,057$ records, class balance stratified).
+The platform was validated and benchmarked strictly against the genuine, canonical **IBM Telco Customer Churn** dataset:
+- **Dataset Provenance Status**: Verified Canonical Dataset (`canonical_ibm_telco_churn`)
+- **Raw File Checksum (SHA-256)**: `16320c9c1ec72448db59aa0a26a0b95401046bef5d02fd3aeb906448e3055e91`
+- **Dataset Dimensions**: 7,043 rows, 21 columns
+- **Ground Truth Target Distribution**: Retained (`No`): 5,174 (73.46%), Churned (`Yes`): 1,869 (26.54%)
+- **Untouched Holdout Test Partition**: 15% stratified split ($N = 1,057$ records)
+- **Synthetic Development Baseline**: Preserved separately under [`reports/evaluations/synthetic/`](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/reports/evaluations/synthetic/synthetic_training_report.md)
+
+### Model Benchmark Comparison (Holdout Test Set):
 
 | Model Candidate | ROC-AUC | PR-AUC | F1-Score | Recall | Precision | Brier Score | Latency p95 | Business Cost |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Logistic Regression (Baseline)** | 0.8559 | 0.7110 | 0.7087 | 0.8052 | 0.6329 | 0.1582 | 10.20 ms | $42,150.00 |
-| **Random Forest Classifier** | 0.8550 | 0.7039 | 0.6974 | 0.7364 | 0.6624 | 0.1574 | 79.31 ms | $52,550.00 |
-| **XGBoost Classifier (Baseline)** | 0.8532 | 0.7090 | 0.7040 | **0.8281** | 0.6123 | 0.1691 | 20.36 ms | **$39,150.00** |
-| **XGBoost Classifier (Tuned Champion)** | **0.8566** | **0.7155** | **0.7032** | 0.8080 | 0.6225 | 0.1697 | **13.82 ms** | $42,050.00 |
+| **Logistic Regression (Baseline)** | 0.8492 | 0.6418 | 0.6289 | 0.7536 | 0.5396 | 0.1668 | 10.69 ms | $43,500.00 |
+| **Random Forest Classifier** | 0.8501 | 0.6567 | 0.6372 | 0.7714 | 0.5427 | 0.1610 | 68.28 ms | $41,100.00 |
+| **XGBoost Classifier (Baseline)** | 0.8508 | 0.6655 | 0.6313 | **0.7857** | 0.5276 | **0.1597** | 18.90 ms | **$39,850.00** |
+| **XGBoost Classifier (Tuned Champion)** | **0.8536** | **0.6697** | **0.6486** | 0.7714 | **0.5596** | 0.1611 | **14.51 ms** | $40,500.00 |
 
 *Champion Model*: `XGBoost_Tuned` (`n_estimators=200`, `max_depth=3`, `learning_rate=0.03`, `subsample=0.8`, `colsample_bytree=0.8`).  
-*Key Churn Risk Drivers (SHAP)*: `tenure` (0.8487), `Contract_Two year` (0.5823), `Contract_One year` (0.3758), `MonthlyCharges` (0.3457), and `InternetService_Fiber optic` (0.2625).
+*Optimal Calibrated Cutoff*: `0.571` (yields calibrated F1: `0.6506`).  
+*Key Real-World Churn Drivers (SHAP)*: `Contract_Two year` (0.5470), `tenure` (0.4605), `InternetService_Fiber optic` (0.3019), `Contract_One year` (0.2473), and `MonthlyCharges` (0.2041).
 
 ---
 
@@ -138,24 +148,24 @@ The core machine learning pipeline was trained and evaluated on an independent 1
 cp .env.example .env
 ```
 
-### 2. Run Test Suite (Unit Tests & Data Leakage Tests)
+### 2. Run Test Suite (Unit Tests, Provenance & Data Leakage Tests)
 ```bash
 pytest tests/ -v
-# Output: 18 passed in ~4.8s
+# Output: 20 passed, 0 failed in ~4.5s
 ```
 
-### 3. Execute End-to-End Training Pipeline
+### 3. Execute End-to-End Real-Data Training Pipeline
 ```bash
 python -m src.models.train
 ```
-This performs:
-- Ingestion with deterministic fallback.
-- Pydantic schema validation.
+This executes:
+- Strict dataset provenance and SHA-256 validation (zero silent fallback).
+- Pydantic schema validation and defensive missing value handling.
 - Exploratory data analysis with visualization generation.
-- Stratified partitioning (70% train, 15% val, 15% test).
+- Stratified partitioning (70% train, 15% val, 15% untouched test).
 - Preprocessing fit strictly on $X_{train}$ (zero data leakage).
 - Model training (Logistic Regression, Random Forest, XGBoost baseline, XGBoost tuned).
 - Empirical metric evaluation and actual latency benchmarking.
-- SHAP feature attribution generation.
+- Real-data SHAP feature attribution generation.
 - Persistence of champion pipeline to `models/saved/best_model_pipeline.joblib`.
 - Comprehensive markdown report to `reports/evaluations/training_report.md`.

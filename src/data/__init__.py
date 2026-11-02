@@ -1,6 +1,12 @@
 """Data ingestion, validation, EDA, and preprocessing package."""
 
-from src.data.loader import ingest_dataset, split_data, generate_synthetic_telco_dataset
+from src.data.loader import (
+    ingest_dataset,
+    split_data,
+    generate_synthetic_telco_dataset,
+    validate_dataset_provenance,
+    DatasetProvenance,
+)
 from src.data.validator import validate_dataframe, CustomerChurnRecord, ValidationReport
 from src.data.eda import run_eda
 from src.data.preprocessor import build_preprocessor, build_full_pipeline, get_feature_names

@@ -33,6 +33,11 @@ class SplitRatiosConfig(BaseModel):
 
 
 class DataConfig(BaseModel):
+    dataset_type: str = "real"
+    allow_synthetic_fallback: bool = False
+    expected_sha256: Optional[str] = "16320c9c1ec72448db59aa0a26a0b95401046bef5d02fd3aeb906448e3055e91"
+    expected_rows: Optional[int] = 7043
+    expected_cols: Optional[int] = 21
     target_column: str = "Churn"
     positive_target_value: str = "Yes"
     negative_target_value: str = "No"

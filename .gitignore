@@ -61,6 +61,8 @@ reports/evaluations/*
 !reports/evaluations/training_report.md
 !reports/evaluations/training_metrics.json
 !reports/evaluations/shap_importances.json
+!reports/evaluations/synthetic/
+!reports/evaluations/synthetic/*
 reports/figures/*
 !reports/figures/.gitkeep
 
