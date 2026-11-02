@@ -16,6 +16,12 @@ from src.models.evaluate import (
 from src.models.explainability import generate_shap_explanations
 from src.models.train import run_training_pipeline, prepare_features_and_target
 
+from src.models.mlflow_manager import (
+    MLflowManager,
+    GatingResult,
+    RollbackResult,
+)
+
 __all__ = [
     "get_logistic_regression",
     "get_random_forest",
@@ -29,4 +35,7 @@ __all__ = [
     "generate_shap_explanations",
     "run_training_pipeline",
     "prepare_features_and_target",
+    "MLflowManager",
+    "GatingResult",
+    "RollbackResult",
 ]

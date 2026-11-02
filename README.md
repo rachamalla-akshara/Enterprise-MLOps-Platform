@@ -92,6 +92,7 @@ Complete architectural blueprints and operational specifications are available i
 - [**System Architecture & Database Schema (`docs/architecture.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/architecture.md): Complete component architecture, repository structure, security design, and PostgreSQL DDL schema.
 - [**ML Pipeline & Model Governance (`docs/ml_pipeline.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/ml_pipeline.md): Data ingestion, feature transformations, candidate models, evaluation metrics, and acceptance gates.
 - [**MLflow Tracking & Registry Design (`docs/mlflow_design.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/mlflow_design.md): Experiment organization, run metadata schema, model signatures, and promotion policies.
+- [**MLflow Implementation & Operations (`docs/mlflow_implementation.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/mlflow_implementation.md): Complete implementation guide covering SQLite tracking, cloudpickle logging, promotion gating, rollback, and dynamic alias resolution.
 - [**Deployment Architecture (`docs/deployment_design.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/deployment_design.md): Multi-stage Dockerfiles, Docker Compose topology, Kubernetes manifests, HPA, and rolling update strategies.
 - [**Monitoring & Drift Detection (`docs/monitoring_design.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/monitoring_design.md): Prometheus metrics catalog, Grafana dashboards, Evidently AI statistical tests, and automated retraining triggers.
 - [**Implementation Roadmap & Testing (`docs/implementation_roadmap.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/implementation_roadmap.md): Multi-phase development roadmap, unit/integration/stress testing strategy, and GitHub Actions CI/CD workflows.
@@ -104,8 +105,8 @@ Complete architectural blueprints and operational specifications are available i
 [x] Phase 0: System Architecture, Database Schemas, Design Specs & Environment Setup
 [x] Phase 1: Core ML Pipeline, Preprocessing, Baseline Models & Zero-Leakage Architecture
 [x] Phase 1.1: Real-Data Canonical Validation & Provenance Verification (COMPLETED)
-[ ] Phase 2: MLflow Tracking Server Infrastructure & Dynamic Model Registry Integration (NEXT)
-[ ] Phase 3: Production-Grade FastAPI Model Serving Engine & Prediction Telemetry
+[x] Phase 2: MLflow Tracking Server Infrastructure & Dynamic Model Registry Integration (COMPLETED)
+[ ] Phase 3: Production-Grade FastAPI Model Serving Engine & Prediction Telemetry (NEXT)
 [ ] Phase 4: Lightweight Docker Multi-Stage Containerization & Compose Orchestration
 [ ] Phase 5: Configurable Evidently AI Drift Detection Worker & Automated Retraining Loop
 [ ] Phase 6: Prometheus & Grafana Observability Dashboards & Alert Rules
@@ -148,13 +149,13 @@ The platform was validated and benchmarked strictly against the genuine, canonic
 cp .env.example .env
 ```
 
-### 2. Run Test Suite (Unit Tests, Provenance & Data Leakage Tests)
+### 2. Run Test Suite (Unit, Leakage, Validation & MLflow Registry Tests)
 ```bash
-pytest tests/ -v
-# Output: 20 passed, 0 failed in ~4.5s
+python -m pytest tests/ -v
+# Output: 25 passed, 0 failed in ~2.5m
 ```
 
-### 3. Execute End-to-End Real-Data Training Pipeline
+### 3. Execute End-to-End Real-Data Training & MLflow Pipeline
 ```bash
 python -m src.models.train
 ```
@@ -165,7 +166,16 @@ This executes:
 - Stratified partitioning (70% train, 15% val, 15% untouched test).
 - Preprocessing fit strictly on $X_{train}$ (zero data leakage).
 - Model training (Logistic Regression, Random Forest, XGBoost baseline, XGBoost tuned).
-- Empirical metric evaluation and actual latency benchmarking.
-- Real-data SHAP feature attribution generation.
-- Persistence of champion pipeline to `models/saved/best_model_pipeline.joblib`.
-- Comprehensive markdown report to `reports/evaluations/training_report.md`.
+- Empirical metric evaluation (separate train, val, and test metrics).
+- MLflow run tracking: parameters, separate split metrics, diagnostic plots, and SHAP explainability.
+- Pipeline encapsulation with cloudpickle serialization and schema signatures.
+- Model registry registration under `customer-churn-classifier`.
+- Acceptance gating: candidate evaluation, automatic champion promotion (`@champion`) and runner-up challenger assignment (`@challenger`).
+- Dynamic alias verification: loading via `models:/customer-churn-classifier@champion` and validating prediction parity.
+- Comprehensive markdown report exported to `reports/evaluations/training_report.md`.
+
+### 4. Launch Local MLflow Tracking UI
+```bash
+mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
+```
+Open `http://localhost:5000` to inspect runs, metric curves, model artifacts, and registry aliases.

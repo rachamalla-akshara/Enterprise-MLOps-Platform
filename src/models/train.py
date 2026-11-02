@@ -21,6 +21,7 @@ from src.models.churn_models import (
     get_xgboost,
     tune_xgboost,
 )
+from src.models.mlflow_manager import MLflowManager, GatingResult
 from src.models.evaluate import (
     evaluate_model,
     find_optimal_f1_threshold,
@@ -67,6 +68,8 @@ def generate_markdown_report(
     provenance: Any,
     config: AppConfig,
     report_path: Path,
+    model_version_map: Dict[str, Tuple[str, str]] | None = None,
+    gating_result: Any | None = None,
 ) -> None:
     """Generates an executive markdown training and evaluation report with strict provenance."""
     champ_metrics = eval_results[champion_name]
@@ -158,6 +161,40 @@ def generate_markdown_report(
         "- Metrics JSON Record: `reports/evaluations/training_metrics.json`",
         "- Preserved Synthetic Benchmark: `reports/evaluations/synthetic/synthetic_training_report.md`",
     ])
+
+    if model_version_map:
+        lines.extend([
+            "",
+            "---",
+            "",
+            "## 5. MLflow Tracking & Model Registry Lifecycle Management",
+            "",
+            f"- **MLflow Tracking URI**: `{config.mlflow.tracking_uri}`",
+            f"- **Artifact Storage**: `{config.mlflow.artifact_location}`",
+            f"- **Registered Model Name**: `{config.mlflow.registered_model_name}`",
+            "",
+            "| Model Candidate | MLflow Run ID | Registered Version | Active Alias / Lifecycle |",
+            "| :--- | :---: | :---: | :---: |",
+        ])
+        for cand_name, (run_id, ver) in model_version_map.items():
+            if cand_name == champion_name:
+                alias_tag = f"`{config.mlflow.aliases.champion}` *(Active)*"
+            elif cand_name == "Logistic_Regression":
+                alias_tag = f"`{config.mlflow.aliases.challenger}`"
+            else:
+                alias_tag = f"`{config.mlflow.aliases.candidate}`"
+            lines.append(f"| **{cand_name}** | `{run_id[:12]}...` | `v{ver}` | {alias_tag} |")
+
+        if gating_result:
+            lines.extend([
+                "",
+                "### Promotion Gating Audit Decisions",
+                "",
+                f"- **Gating Passed**: `{gating_result.passed}`",
+                f"- **Initial Champion Qualification**: `{gating_result.is_initial_champion}`",
+            ])
+            for r in gating_result.reasons:
+                lines.append(f"  - {r}")
 
     report_path.parent.mkdir(parents=True, exist_ok=True)
     with open(report_path, "w", encoding="utf-8") as f:
@@ -262,14 +299,36 @@ def run_training_pipeline(config: AppConfig | None = None) -> Dict[str, Any]:
         best_params = {}
 
     # 8. Evaluation on Validation Set and Test Set
-    logger.info("Evaluating models on Holdout Test Set (%d samples)...", len(X_test))
+    logger.info("Evaluating models on Validation Set and Holdout Test Set (%d samples)...", len(X_test))
     eval_results: Dict[str, Dict[str, Any]] = {}
+    train_metrics_dict: Dict[str, Dict[str, float]] = {}
+    val_metrics_dict: Dict[str, Dict[str, float]] = {}
     pipe_dict_for_plots: Dict[str, Tuple[Any, Dict[str, Any]]] = {}
 
+    from sklearn.metrics import average_precision_score, brier_score_loss, f1_score, roc_auc_score
+
     for name, pipe in models_to_evaluate.items():
+        # Evaluate on training set
+        tr_probs = pipe.predict_proba(X_train)[:, 1]
+        tr_m = {
+            "roc_auc": round(float(roc_auc_score(y_train, tr_probs)), 4),
+            "pr_auc": round(float(average_precision_score(y_train, tr_probs)), 4),
+            "f1": round(float(f1_score(y_train, (tr_probs >= 0.5).astype(int), zero_division=0)), 4),
+            "brier_score": round(float(brier_score_loss(y_train, tr_probs)), 4),
+        }
+        train_metrics_dict[name] = tr_m
+
         # Evaluate on validation set to find optimal threshold
         val_probs = pipe.predict_proba(X_val)[:, 1]
         opt_thresh, _ = find_optimal_f1_threshold(y_val, val_probs)
+        val_m = {
+            "roc_auc": round(float(roc_auc_score(y_val, val_probs)), 4),
+            "pr_auc": round(float(average_precision_score(y_val, val_probs)), 4),
+            "f1": round(float(f1_score(y_val, (val_probs >= opt_thresh).astype(int), zero_division=0)), 4),
+            "brier_score": round(float(brier_score_loss(y_val, val_probs)), 4),
+            "optimal_threshold": round(float(opt_thresh), 3),
+        }
+        val_metrics_dict[name] = val_m
 
         # Evaluate on holdout test set using both 0.5 and optimal threshold
         metrics = evaluate_model(pipe, X_test, y_test, model_name=name, config=cfg, optimal_threshold=opt_thresh)
@@ -277,10 +336,10 @@ def run_training_pipeline(config: AppConfig | None = None) -> Dict[str, Any]:
         pipe_dict_for_plots[name] = (pipe, metrics)
 
     # 9. Diagnostic Curves
+    figures_dir = root / cfg.paths.figures_dir
     plot_evaluation_curves(pipe_dict_for_plots, X_test, y_test, cfg)
 
     # 10. Select Champion Model
-    # Champion criterion: highest PR-AUC and lowest Business Cost on Holdout Test
     ranked_models = sorted(
         eval_results.items(),
         key=lambda item: (item[1]["pr_auc"], -item[1]["business_cost"]["total_cost"]),
@@ -288,6 +347,7 @@ def run_training_pipeline(config: AppConfig | None = None) -> Dict[str, Any]:
     )
     champion_name, champion_metrics = ranked_models[0]
     champion_pipeline = models_to_evaluate[champion_name]
+    runner_up_name = ranked_models[1][0] if len(ranked_models) > 1 else champion_name
     logger.info("Selected Champion Model: [%s] (PR-AUC: %.4f, ROC-AUC: %.4f)", champion_name, champion_metrics["pr_auc"], champion_metrics["roc_auc"])
 
     # Plot Confusion Matrix for Champion
@@ -296,17 +356,85 @@ def run_training_pipeline(config: AppConfig | None = None) -> Dict[str, Any]:
     # 11. SHAP Explainability
     shap_results = generate_shap_explanations(champion_pipeline, X_test, cfg, sample_size=300)
 
-    # 12. Save Serialized Champion Artifact
+    # 12. Save Serialized Champion Artifact Locally
     best_model_file = root / cfg.paths.best_model_path
     best_model_file.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(champion_pipeline, best_model_file)
     logger.info("Saved serialized Champion model pipeline to: %s", best_model_file)
 
-    # 13. Export Training Metrics & Markdown Report
+    # 13. MLflow Tracking & Model Registry Integration
+    logger.info("Logging candidate models to MLflow Tracking Server and Registry...")
+    mlflow_mgr = MLflowManager(cfg)
+    model_version_map: Dict[str, Tuple[str, str]] = {}
+
+    common_artifacts = [
+        figures_dir / "roc_curve_comparison.png",
+        figures_dir / "pr_curve_comparison.png",
+        figures_dir / "model_metrics_comparison.png",
+    ]
+
+    for name, pipe in models_to_evaluate.items():
+        est = pipe.named_steps["classifier"]
+        hparams = est.get_params()
+        # Filter complex object values for MLflow params
+        clean_hparams = {k: v for k, v in hparams.items() if isinstance(v, (int, float, str, bool)) or v is None}
+
+        art_list = list(common_artifacts)
+        if name == champion_name:
+            art_list.extend([
+                figures_dir / "confusion_matrix.png",
+                figures_dir / "shap_summary.png",
+                figures_dir / "shap_importance_bar.png",
+                eval_dir / "shap_importances.json",
+            ])
+
+        run_id, ver = mlflow_mgr.log_model_run(
+            model_name=name,
+            pipeline=pipe,
+            hyperparameters=clean_hparams,
+            train_metrics=train_metrics_dict[name],
+            val_metrics=val_metrics_dict[name],
+            test_metrics=eval_results[name],
+            X_sample=X_test,
+            provenance=provenance,
+            artifacts_to_log=art_list,
+        )
+        model_version_map[name] = (run_id, ver)
+
+    # 14. Gating Evaluation & Dynamic Registry Lifecycle Promotion
+    champ_run_id, champ_version = model_version_map[champion_name]
+    gating_result = mlflow_mgr.evaluate_candidate_for_promotion(champion_metrics, champ_version)
+
+    logger.info("Gating Evaluation for %s (v%s): Passed=%s", champion_name, champ_version, gating_result.passed)
+    for reason in gating_result.reasons:
+        logger.info("  -> %s", reason)
+
+    if gating_result.passed:
+        mlflow_mgr.promote_to_champion(champ_version, notes="Passed all gating criteria on real holdout test partition.")
+    else:
+        logger.warning("Champion model failed gating! Remaining as candidate.")
+
+    # Promote runner-up to challenger
+    if runner_up_name in model_version_map:
+        _, runner_up_ver = model_version_map[runner_up_name]
+        mlflow_mgr.promote_to_challenger(runner_up_ver)
+
+    # Verify dynamic model loading via registry alias URI
+    loaded_champion = mlflow_mgr.load_model_by_alias(cfg.mlflow.aliases.champion)
+    sample_preds_orig = champion_pipeline.predict_proba(X_test.head(5))
+    sample_preds_loaded = loaded_champion.predict_proba(X_test.head(5))
+    np.testing.assert_allclose(sample_preds_orig, sample_preds_loaded, atol=1e-5)
+    logger.info("Verified dynamic model alias resolution: 'models:/%s@%s' loaded and tested.", cfg.mlflow.registered_model_name, cfg.mlflow.aliases.champion)
+
+    # 15. Export Training Metrics & Markdown Report
     summary_output = {
         "project": cfg.project.name,
         "provenance": provenance.model_dump(),
         "champion_model": champion_name,
+        "champion_version": champ_version,
+        "champion_run_id": champ_run_id,
+        "gating_result": gating_result.model_dump(),
+        "model_registry_versions": {k: {"run_id": v[0], "version": v[1]} for k, v in model_version_map.items()},
         "champion_metrics": champion_metrics,
         "all_models_evaluated": eval_results,
         "shap_summary": shap_results,
@@ -317,11 +445,20 @@ def run_training_pipeline(config: AppConfig | None = None) -> Dict[str, Any]:
         json.dump(summary_output, f, indent=2)
 
     report_md_path = eval_dir / "training_report.md"
-    generate_markdown_report(eval_results, champion_name, shap_results, provenance, cfg, report_md_path)
+    generate_markdown_report(
+        eval_results,
+        champion_name,
+        shap_results,
+        provenance,
+        cfg,
+        report_md_path,
+        model_version_map=model_version_map,
+        gating_result=gating_result,
+    )
 
     logger.info("================================================================================")
-    logger.info("PHASE 1 TRAINING PIPELINE COMPLETED SUCCESSFULLY")
-    logger.info("Champion Model: %s", champion_name)
+    logger.info("PHASE 2 TRAINING & REGISTRY PIPELINE COMPLETED SUCCESSFULLY")
+    logger.info("Champion Model: %s (v%s)", champion_name, champ_version)
     logger.info("Holdout PR-AUC: %.4f | ROC-AUC: %.4f | F1: %.4f", champion_metrics["pr_auc"], champion_metrics["roc_auc"], champion_metrics["f1"])
     logger.info("Report: %s", report_md_path)
     logger.info("================================================================================")

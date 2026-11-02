@@ -64,6 +64,24 @@ preprocessing:
   one_hot_drop: "first"
   handle_unknown: "ignore"
 
+mlflow:
+  tracking_uri: "sqlite:///mlflow.db"
+  artifact_location: "mlruns"
+  experiment_name: "customer-churn-prediction"
+  registered_model_name: "customer-churn-classifier"
+  enable_autolog: false
+  aliases:
+    champion: "champion"
+    challenger: "challenger"
+    candidate: "candidate"
+    archived: "archived"
+  gating:
+    min_roc_auc: 0.830
+    min_pr_auc: 0.650
+    min_f1: 0.580
+    max_latency_p95_ms: 30.0
+    min_improvement_pr_auc: 0.005
+
 models:
   logistic_regression:
     max_iter: 1000

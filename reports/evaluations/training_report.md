@@ -27,10 +27,10 @@
 
 | Model Name | ROC-AUC | PR-AUC | F1-Score | Precision | Recall | Brier Score | Latency p95 (ms) | Total Cost ($) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Logistic_Regression** | **0.8492** | **0.6418** | 0.6289 | 0.5396 | 0.7536 | 0.1668 | 10.69 ms | $43,500.00 |
-| **Random_Forest** | **0.8501** | **0.6567** | 0.6372 | 0.5427 | 0.7714 | 0.1610 | 68.28 ms | $41,100.00 |
-| **XGBoost_Baseline** | **0.8508** | **0.6655** | 0.6313 | 0.5276 | 0.7857 | 0.1597 | 18.90 ms | $39,850.00 |
-| **XGBoost_Tuned** *(Champion)* | **0.8536** | **0.6697** | 0.6486 | 0.5596 | 0.7714 | 0.1611 | 14.51 ms | $40,500.00 |
+| **Logistic_Regression** | **0.8492** | **0.6418** | 0.6289 | 0.5396 | 0.7536 | 0.1668 | 14.55 ms | $43,500.00 |
+| **Random_Forest** | **0.8501** | **0.6567** | 0.6372 | 0.5427 | 0.7714 | 0.1610 | 92.69 ms | $41,100.00 |
+| **XGBoost_Baseline** | **0.8508** | **0.6655** | 0.6313 | 0.5276 | 0.7857 | 0.1597 | 20.63 ms | $39,850.00 |
+| **XGBoost_Tuned** *(Champion)* | **0.8536** | **0.6697** | 0.6486 | 0.5596 | 0.7714 | 0.1611 | 17.14 ms | $40,500.00 |
 
 ---
 
@@ -39,7 +39,7 @@
 - **Optimal Decision Cutoff**: `0.571` (Yields Calibrated F1: `0.6506`)
 - **Confusion Matrix**: TN=`607`, FP=`170`, FN=`64`, TP=`216`
 - **Business Cost Breakdown**: $40,500.00 total across test partition ($38.32 / customer)
-- **Actual Inference Latency**: Mean=`12.48 ms`, p50=`12.14 ms`, p95=`14.51 ms`
+- **Actual Inference Latency**: Mean=`13.86 ms`, p50=`13.56 ms`, p95=`17.14 ms`
 
 ---
 
@@ -69,3 +69,28 @@ Top features driving customer churn risk based on mean absolute SHAP values on r
 - SHAP Visualizations: `reports/figures/shap_summary.png`, `reports/figures/shap_importance_bar.png`
 - Metrics JSON Record: `reports/evaluations/training_metrics.json`
 - Preserved Synthetic Benchmark: `reports/evaluations/synthetic/synthetic_training_report.md`
+
+---
+
+## 5. MLflow Tracking & Model Registry Lifecycle Management
+
+- **MLflow Tracking URI**: `sqlite:///mlflow.db`
+- **Artifact Storage**: `mlruns`
+- **Registered Model Name**: `customer-churn-classifier`
+
+| Model Candidate | MLflow Run ID | Registered Version | Active Alias / Lifecycle |
+| :--- | :---: | :---: | :---: |
+| **Logistic_Regression** | `01077335d387...` | `v1` | `challenger` |
+| **Random_Forest** | `f01f6082e35b...` | `v2` | `candidate` |
+| **XGBoost_Baseline** | `6251e443f3c7...` | `v3` | `candidate` |
+| **XGBoost_Tuned** | `0c10e58f8438...` | `v4` | `champion` *(Active)* |
+
+### Promotion Gating Audit Decisions
+
+- **Gating Passed**: `True`
+- **Initial Champion Qualification**: `True`
+  - PASSED Gate 1: ROC-AUC 0.8536 >= 0.83
+  - PASSED Gate 2: PR-AUC 0.6697 >= 0.65
+  - PASSED Gate 3: F1-Score 0.6486 >= 0.58
+  - PASSED Gate 4: Latency p95 17.14 ms <= 30.0 ms
+  - No active champion in registry. Candidate qualifies as initial Champion.

@@ -116,12 +116,38 @@ class EvaluationConfig(BaseModel):
     business_cost: BusinessCostConfig
 
 
+class MLflowAliasesConfig(BaseModel):
+    champion: str = "champion"
+    challenger: str = "challenger"
+    candidate: str = "candidate"
+    archived: str = "archived"
+
+
+class MLflowGatingConfig(BaseModel):
+    min_roc_auc: float = 0.830
+    min_pr_auc: float = 0.650
+    min_f1: float = 0.580
+    max_latency_p95_ms: float = 30.0
+    min_improvement_pr_auc: float = 0.005
+
+
+class MLflowConfig(BaseModel):
+    tracking_uri: str = "sqlite:///mlflow.db"
+    artifact_location: str = "mlruns"
+    experiment_name: str = "customer-churn-prediction"
+    registered_model_name: str = "customer-churn-classifier"
+    enable_autolog: bool = False
+    aliases: MLflowAliasesConfig = Field(default_factory=MLflowAliasesConfig)
+    gating: MLflowGatingConfig = Field(default_factory=MLflowGatingConfig)
+
+
 class AppConfig(BaseModel):
     project: ProjectConfig
     paths: PathsConfig
     data: DataConfig
     features: FeaturesConfig
     preprocessing: PreprocessingConfig
+    mlflow: MLflowConfig = Field(default_factory=MLflowConfig)
     models: ModelsConfig
     evaluation: EvaluationConfig
 

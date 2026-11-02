@@ -18,6 +18,46 @@
     }
   },
   "champion_model": "XGBoost_Tuned",
+  "champion_version": "4",
+  "champion_run_id": "0c10e58f843846258e8704874b62581f",
+  "gating_result": {
+    "passed": true,
+    "is_initial_champion": true,
+    "reasons": [
+      "PASSED Gate 1: ROC-AUC 0.8536 >= 0.83",
+      "PASSED Gate 2: PR-AUC 0.6697 >= 0.65",
+      "PASSED Gate 3: F1-Score 0.6486 >= 0.58",
+      "PASSED Gate 4: Latency p95 17.14 ms <= 30.0 ms",
+      "No active champion in registry. Candidate qualifies as initial Champion."
+    ],
+    "candidate_metrics": {
+      "roc_auc": 0.8536,
+      "pr_auc": 0.6697,
+      "f1": 0.6486,
+      "latency_p95_ms": 17.135,
+      "total_cost": 40500.0
+    },
+    "champion_metrics": null,
+    "improvements": {}
+  },
+  "model_registry_versions": {
+    "Logistic_Regression": {
+      "run_id": "01077335d387451893882d711e2fef4f",
+      "version": "1"
+    },
+    "Random_Forest": {
+      "run_id": "f01f6082e35b4f90a7aaeba91ead6b33",
+      "version": "2"
+    },
+    "XGBoost_Baseline": {
+      "run_id": "6251e443f3c745018ebcd3dc58f14555",
+      "version": "3"
+    },
+    "XGBoost_Tuned": {
+      "run_id": "0c10e58f843846258e8704874b62581f",
+      "version": "4"
+    }
+  },
   "champion_metrics": {
     "model_name": "XGBoost_Tuned",
     "decision_threshold": 0.57,
@@ -43,10 +83,10 @@
       "avg_cost_per_customer": 38.32
     },
     "latency_benchmark": {
-      "mean_ms": 12.482,
-      "p50_ms": 12.143,
-      "p95_ms": 14.508,
-      "p99_ms": 16.456
+      "mean_ms": 13.857,
+      "p50_ms": 13.559,
+      "p95_ms": 17.135,
+      "p99_ms": 17.737
     }
   },
   "all_models_evaluated": {
@@ -75,10 +115,10 @@
         "avg_cost_per_customer": 41.15
       },
       "latency_benchmark": {
-        "mean_ms": 9.369,
-        "p50_ms": 9.176,
-        "p95_ms": 10.687,
-        "p99_ms": 12.747
+        "mean_ms": 11.902,
+        "p50_ms": 11.66,
+        "p95_ms": 14.554,
+        "p99_ms": 17.845
       }
     },
     "Random_Forest": {
@@ -106,10 +146,10 @@
         "avg_cost_per_customer": 38.88
       },
       "latency_benchmark": {
-        "mean_ms": 61.022,
-        "p50_ms": 60.12,
-        "p95_ms": 68.284,
-        "p99_ms": 82.997
+        "mean_ms": 77.439,
+        "p50_ms": 75.64,
+        "p95_ms": 92.692,
+        "p99_ms": 98.185
       }
     },
     "XGBoost_Baseline": {
@@ -137,10 +177,10 @@
         "avg_cost_per_customer": 37.7
       },
       "latency_benchmark": {
-        "mean_ms": 16.83,
-        "p50_ms": 16.479,
-        "p95_ms": 18.9,
-        "p99_ms": 22.864
+        "mean_ms": 17.292,
+        "p50_ms": 17.092,
+        "p95_ms": 20.632,
+        "p99_ms": 21.714
       }
     },
     "XGBoost_Tuned": {
@@ -168,10 +208,10 @@
         "avg_cost_per_customer": 38.32
       },
       "latency_benchmark": {
-        "mean_ms": 12.482,
-        "p50_ms": 12.143,
-        "p95_ms": 14.508,
-        "p99_ms": 16.456
+        "mean_ms": 13.857,
+        "p50_ms": 13.559,
+        "p95_ms": 17.135,
+        "p99_ms": 17.737
       }
     }
   },
