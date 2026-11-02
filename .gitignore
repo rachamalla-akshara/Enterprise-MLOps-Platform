@@ -1,0 +1,115 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+.venv/
+ENV/
+env/
+
+# MLflow local runs and artifacts
+mlruns/
+mlartifacts/
+.mlflow/
+
+# Data directories (raw, interim, external - never commit sensitive/heavy data)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/interim/*
+!data/interim/.gitkeep
+data/samples/*
+!data/samples/sample_churn_input.csv
+
+# Model storage and local checkpoint weights
+models/saved/*
+!models/saved/.gitkeep
+*.pkl
+*.joblib
+*.h5
+*.onnx
+
+# Reports and generated drift summaries
+reports/drift/*
+!reports/drift/.gitkeep
+reports/evaluations/*
+!reports/evaluations/.gitkeep
+reports/figures/*
+!reports/figures/.gitkeep
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+
+# Database data mounts & SQLite
+*.sqlite3
+*.db
+pgdata/
+minio_data/
+
+# IDE / Editor configuration
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing and code coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+coverage.xml
+nosetests.xml
+
+# Code Linters & Type Checking
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# Node / React Frontend (for future UI phase)
+frontend/node_modules/
+frontend/build/
+frontend/.next/
+frontend/dist/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Docker local overrides
+docker-compose.override.yml
+
+# Logs
+logs/
+*.log
