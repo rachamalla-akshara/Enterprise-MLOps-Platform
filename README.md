@@ -97,6 +97,7 @@ Complete architectural blueprints and operational specifications are available i
 - [**Docker Deployment & Orchestration (`docs/docker_deployment.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/docker_deployment.md): Multi-stage container builds, Docker Compose topology, persistent volume architecture, and MLflow migration tools.
 - [**Deployment Architecture (`docs/deployment_design.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/deployment_design.md): Multi-stage Dockerfiles, Docker Compose topology, Kubernetes manifests, HPA, and rolling update strategies.
 - [**Monitoring & Drift Detection (`docs/monitoring_design.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/monitoring_design.md): Prometheus metrics catalog, Grafana dashboards, Evidently AI statistical tests, and automated retraining triggers.
+- [**Evidently AI Drift Monitoring & Retraining Guide (`docs/drift_monitoring.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/drift_monitoring.md): Complete guide to Phase 5 drift detection, privacy-aware telemetry buffer, statistical tests, delayed ground-truth evaluation, and retraining policies.
 - [**Implementation Roadmap & Testing (`docs/implementation_roadmap.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/implementation_roadmap.md): Multi-phase development roadmap, unit/integration/stress testing strategy, and GitHub Actions CI/CD workflows.
 
 ---
@@ -110,8 +111,8 @@ Complete architectural blueprints and operational specifications are available i
 [x] Phase 2: MLflow Tracking Server Infrastructure & Dynamic Model Registry Integration (COMPLETED)
 [x] Phase 3: Production-Grade FastAPI Model Serving Engine & Prediction Telemetry (COMPLETED)
 [x] Phase 4: Lightweight Docker Multi-Stage Containerization & Compose Orchestration (COMPLETED)
-[ ] Phase 5: Configurable Evidently AI Drift Detection Worker & Automated Retraining Loop (NEXT)
-[ ] Phase 6: Prometheus & Grafana Observability Dashboards & Alert Rules
+[x] Phase 5: Evidently AI Data Drift Detection, Model Monitoring & Retraining Controller (COMPLETED)
+[ ] Phase 6: Prometheus & Grafana Observability Dashboards & Alert Rules (NEXT)
 [ ] Phase 7: Kubernetes Orchestration (Manifests, HPA, Ingress & Health Probes)
 [ ] Phase 8: GitHub Actions CI/CD Automation & Security Scanning
 [ ] Phase 9: React Operations Dashboard & Inference Playground
@@ -289,3 +290,110 @@ docker compose down
 # Stop containers and erase all volume data (CAUTION)
 docker compose down -v
 ```
+
+---
+
+## 10. Evidently AI Data Drift Detection & Model Monitoring (Phase 5)
+
+Phase 5 introduces continuous production monitoring, non-parametric statistical drift detection, data quality auditing, delayed ground-truth performance evaluation, and controlled retraining recommendations without human privacy violations.
+
+### 1. Architectural Highlights & Privacy Invariants
+
+- **Zero-PII Ephemeral Telemetry Buffer**: Customer features are never logged permanently. Predictions are stripped of identifiers; raw feature observations are temporarily held in an ephemeral bounded buffer table (`monitoring.feature_observations`, default capacity: 5,000 records, retention TTL: 72 hours) with automatic FIFO eviction.
+- **Persistent Aggregate Audits**: Statistical metrics, drift shares, p-values, distance metrics, and data quality summaries are permanently recorded across 7 dedicated tables in the `monitoring` PostgreSQL schema.
+- **Champion Protection Invariant**: Statistical drift detection or performance degradation triggers explicit **retraining recommendations** with remediation playbooks. Drift detection **never automatically replaces, aliases, or promotes models** directly to production.
+
+```mermaid
+flowchart TD
+    subgraph Serving["FastAPI Inference Engine"]
+        Req["Inference Request\n(Pydantic validated)"] --> Predict["Champion Model Predict"]
+        Predict --> PredLog[("public.prediction_logs\n(request_id, latency, prob)")]
+        Predict --> Buffer[("monitoring.feature_observations\n(TTL: 72h / FIFO: 5k)")]
+    end
+
+    subgraph MonitoringWorker["Evidently Monitoring Worker (Daemon / CLI / API)"]
+        Buffer -->|"Sliding Window (N >= 50)"| Quality["Data Quality Monitor\n(Missingness, ranges, novel classes)"]
+        Quality --> Drift["Drift Detector\n(KS test, Wasserstein, Chi-Square, TVD)"]
+        RefData[("data/processed/\nreference_dataset.parquet")] --> Drift
+        PredLog --> PredDrift["Prediction Monitor\n(Probability KS & Churn Rate Divergence)"]
+        
+        Feedback[("monitoring.ground_truth_feedback\n(delayed actual churn)")] --> Perf["Performance Monitor\n(ROC-AUC, PR-AUC, F1, Brier)"]
+        
+        Drift --> RecEngine["Retraining Recommendation Engine\n(Cooldown: 24h)"]
+        Perf --> RecEngine
+        PredDrift --> RecEngine
+        
+        RecEngine --> RecLog[("monitoring.retraining_recommendations")]
+        Drift --> Reports["Interactive HTML & JSON Reports\n(reports/monitoring/)"]
+    end
+```
+
+### 2. Statistical Drift Detection Methodology
+
+| Feature Type | Primary Statistical Test | Fallback / Complementary Metric | Drift Threshold |
+| :--- | :--- | :--- | :--- |
+| **Numerical** (`tenure`, `MonthlyCharges`, `TotalCharges`) | Two-Sample Kolmogorov-Smirnov (KS) test | 1D Wasserstein Distance ($L_1$) | $p < 0.05$ (KS) or $W > 0.1$ |
+| **Categorical** (16 contract/service features) | Pearson's Chi-Square Test ($\ge 5$ observations/cell) | Total Variation Distance (TVD) | $p < 0.05$ ($\chi^2$) or $\text{TVD} > 0.1$ |
+| **Dataset Drift Gate** | Drifted Feature Share | Overall feature pool ($N=19$) | $\text{Drift Share} \ge 30\%$ (6+ drifted features) |
+| **Prediction Drift** | KS Test on Output Probabilities | Divergence from Reference Churn Rate (26.54%) | $p < 0.05$ or $\|\Delta \text{Churn Rate}\| > 15\%$ |
+
+### 3. Monitoring API Endpoints
+
+FastAPI exposes authenticated monitoring endpoints under `/monitoring`:
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/monitoring/status` | Current monitoring status, sample counts, active window, and last run time |
+| `GET` | `/monitoring/latest` | Latest drift report, data quality summary, and retraining recommendations |
+| `POST` | `/monitoring/run` | Trigger an on-demand monitoring cycle with HTML and JSON report export |
+| `POST` | `/monitoring/feedback` | Ingest delayed ground-truth labels matched against inference `request_id` |
+
+#### Example: Ingest Ground-Truth Feedback
+```bash
+curl -X POST http://localhost:8000/monitoring/feedback \
+  -H "Content-Type: application/json" \
+  -d '{
+    "feedbacks": [
+      {
+        "request_id": "8aa165ea-edb8-4033-ae10-229062ff2067",
+        "actual_churn": 1,
+        "notes": "Customer cancelled service after promotional rate expired"
+      }
+    ]
+  }'
+```
+
+### 4. Running the Monitoring Worker CLI
+
+The standalone monitoring worker can be invoked locally or inside Docker:
+
+```bash
+# Check status and observation counts
+python -m src.monitoring.worker --status
+
+# Execute a single monitoring run
+python -m src.monitoring.worker --run-once
+
+# Ingest test observation batch from raw CSV
+python -m src.monitoring.worker --ingest-observations data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv --limit 100
+
+# Ingest ground-truth labels from CSV
+python -m src.monitoring.worker --ingest-ground-truth data/raw/ground_truth_batch.csv
+
+# Run as background daemon with 3600-second interval
+python -m src.monitoring.worker --daemon --interval 3600
+
+# Purge expired ephemeral observations manually
+python -m src.monitoring.worker --purge
+```
+
+### 5. Retraining Recommendation Policies
+
+When drift or degradation is confirmed, the engine issues a structured recommendation with specific root causes:
+
+1. **`DATASET_DRIFT` Trigger**: Triggered when drifted feature share $\ge 30\%$. Recommended action: Feature pipeline audit and scheduled retraining on recent data window.
+2. **`PERFORMANCE_DROP` Trigger**: Triggered when evaluated holdout ROC-AUC drops below $0.78$ or F1 drops below $0.55$. Recommended action: Immediate model retraining and champion/challenger re-evaluation.
+3. **`PREDICTION_DRIFT` Trigger**: Triggered when predicted churn rate shifts by $> 15\%$ from the training prior ($26.54\%$) or output probability distribution drifts significantly ($p < 0.05$).
+4. **`DATA_QUALITY_FAIL` Trigger**: Triggered when missing value rates or invalid category rates exceed acceptable thresholds.
+5. **Cooldown Enforcement**: Once a retraining recommendation is recorded, an automatic **24-hour cooldown** prevents redundant alert spam.
+

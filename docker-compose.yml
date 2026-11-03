@@ -122,7 +122,40 @@ services:
           memory: 1.5G
 
   # ----------------------------------------------------------------------------
-  # 4. MinIO Object Storage (Optional S3-Compatible Storage via 'storage' Profile)
+  # 4. Evidently AI Monitoring Worker
+  # ----------------------------------------------------------------------------
+  monitoring:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: enterprise-mlops-api:1.0.0
+    container_name: mlops-monitoring
+    restart: unless-stopped
+    command: ["python", "-m", "src.monitoring.worker", "--daemon", "--interval-seconds", "${MONITORING_INTERVAL_SECONDS:-3600}"]
+    environment:
+      MONITORING_DB_URI: postgresql+psycopg2://${POSTGRES_USER:-mlops_user}:${POSTGRES_PASSWORD:-mlops_password}@postgres:5432/${POSTGRES_DB:-mlops_db}
+      PREDICTION_DB_URI: postgresql+psycopg2://${POSTGRES_USER:-mlops_user}:${POSTGRES_PASSWORD:-mlops_password}@postgres:5432/${POSTGRES_DB:-mlops_db}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MONITORING_REPORTS_DIR: /app/reports/monitoring
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - monitoring_reports:/app/reports/monitoring
+      - ./data:/app/data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    networks:
+      - mlops_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  # ----------------------------------------------------------------------------
+  # 5. MinIO Object Storage (Optional S3-Compatible Storage via 'storage' Profile)
   # ----------------------------------------------------------------------------
   minio:
     profiles:
@@ -166,5 +199,7 @@ volumes:
     name: mlops_postgres_data
   mlflow_artifacts:
     name: mlops_mlflow_artifacts
+  monitoring_reports:
+    name: mlops_monitoring_reports
   minio_data:
     name: mlops_minio_data

@@ -158,3 +158,38 @@ class ReloadResponse(BaseModel):
     new_version: str
     model_name: str
     reloaded_at: str
+
+
+class GroundTruthFeedbackRequest(BaseModel):
+    """Payload for POST /monitoring/feedback."""
+
+    model_config = ConfigDict(extra="forbid")
+    request_id: str = Field(description="UUID of the inference request to match")
+    actual_churn: Literal[0, 1] = Field(description="True ground-truth outcome: 0=No Churn, 1=Churn")
+    source: str = Field(default="manual_feedback", description="Origin of ground-truth label")
+
+
+class GroundTruthFeedbackResponse(BaseModel):
+    """Response returned by POST /monitoring/feedback."""
+
+    status: str = "success"
+    request_id: str
+    actual_churn: int
+    message: str
+    recorded_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class MonitoringRunResponse(BaseModel):
+    """Response returned by POST /monitoring/run."""
+
+    status: str
+    report_id: str
+    dataset_drift_detected: bool
+    drift_share: float
+    data_quality_status: str
+    prediction_drift_detected: bool
+    retraining_recommendation_status: str
+    retraining_trigger_reason: Optional[str] = None
+    report_html_path: str
+    report_json_path: str
+    executed_at: str

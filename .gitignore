@@ -56,6 +56,9 @@ models/saved/*
 # Reports and generated drift summaries
 reports/drift/*
 !reports/drift/.gitkeep
+reports/monitoring/*
+!reports/monitoring/.gitkeep
+reports/monitoring_tests/
 reports/evaluations/*
 !reports/evaluations/.gitkeep
 !reports/evaluations/training_report.md

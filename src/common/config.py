@@ -152,6 +152,25 @@ class ServingConfig(BaseModel):
     prediction_db_uri: str = "sqlite:///predictions.db"
 
 
+class MonitoringConfig(BaseModel):
+    reference_data_path: str = "data/processed/reference_dataset.parquet"
+    monitoring_db_uri: str = "sqlite:///predictions.db"
+    reports_dir: str = "reports/monitoring"
+    min_sample_size: int = 50
+    drift_share_threshold: float = 0.30
+    significance_level: float = 0.05
+    numerical_method: str = "ks"
+    categorical_method: str = "chisquare"
+    prediction_drift_threshold: float = 0.10
+    data_quality_missing_threshold: float = 0.05
+    performance_degradation_recall_threshold: float = 0.60
+    performance_degradation_pr_auc_threshold: float = 0.55
+    cooldown_hours: int = 24
+    retention_days: int = 30
+    buffer_max_size: int = 5000
+    buffer_retention_hours: int = 72
+
+
 class AppConfig(BaseModel):
     project: ProjectConfig
     paths: PathsConfig
@@ -162,6 +181,7 @@ class AppConfig(BaseModel):
     models: ModelsConfig
     evaluation: EvaluationConfig
     serving: ServingConfig = Field(default_factory=ServingConfig)
+    monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
 
 
 _cached_config: Optional[AppConfig] = None
@@ -217,6 +237,18 @@ def get_config(config_path: Optional[str] = None) -> AppConfig:
             config.serving.decision_threshold = float(os.environ["SERVING_DECISION_THRESHOLD"])
         if "SERVING_MODEL_ALIAS" in os.environ:
             config.serving.model_alias = os.environ["SERVING_MODEL_ALIAS"]
+        if "MONITORING_DB_URI" in os.environ:
+            config.monitoring.monitoring_db_uri = os.environ["MONITORING_DB_URI"]
+        elif "DATABASE_URL" in os.environ:
+            config.monitoring.monitoring_db_uri = os.environ["DATABASE_URL"]
+        if "MONITORING_REFERENCE_DATA_PATH" in os.environ:
+            config.monitoring.reference_data_path = os.environ["MONITORING_REFERENCE_DATA_PATH"]
+        if "MONITORING_REPORTS_DIR" in os.environ:
+            config.monitoring.reports_dir = os.environ["MONITORING_REPORTS_DIR"]
+        if "MONITORING_MIN_SAMPLE_SIZE" in os.environ:
+            config.monitoring.min_sample_size = int(os.environ["MONITORING_MIN_SAMPLE_SIZE"])
+        if "MONITORING_DRIFT_THRESHOLD" in os.environ:
+            config.monitoring.drift_share_threshold = float(os.environ["MONITORING_DRIFT_THRESHOLD"])
 
         if config_path is None:
             _cached_config = config

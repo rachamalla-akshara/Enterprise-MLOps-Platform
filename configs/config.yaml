@@ -134,3 +134,22 @@ serving:
   auto_reload_interval_seconds: 0
   prediction_db_uri: "sqlite:///predictions.db"
 
+monitoring:
+  reference_data_path: "data/processed/reference_dataset.parquet"
+  monitoring_db_uri: "sqlite:///predictions.db"
+  reports_dir: "reports/monitoring"
+  min_sample_size: 50
+  drift_share_threshold: 0.30
+  significance_level: 0.05
+  numerical_method: "ks"
+  categorical_method: "chisquare"
+  prediction_drift_threshold: 0.10
+  data_quality_missing_threshold: 0.05
+  performance_degradation_recall_threshold: 0.60
+  performance_degradation_pr_auc_threshold: 0.55
+  cooldown_hours: 24
+  retention_days: 30
+  buffer_max_size: 5000
+  buffer_retention_hours: 72
+
+

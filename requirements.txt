@@ -32,3 +32,6 @@ psycopg2-binary==2.9.10
 mlflow==3.17.2
 docker==7.2.0
 boto3==1.37.9
+
+# Model Monitoring & Drift Detection
+evidently==0.7.23

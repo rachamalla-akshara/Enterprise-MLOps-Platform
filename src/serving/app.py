@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from src.common.config import AppConfig, get_config
 from src.common.logger import get_logger
+from src.monitoring.monitoring_service import MonitoringService
 from src.serving.exceptions import (
     AuthenticationError,
     ModelNotLoadedError,
@@ -23,8 +24,11 @@ from src.serving.prediction_logger import PredictionLogger
 from src.serving.prediction_service import PredictionService
 from src.serving.schemas import (
     CustomerFeatures,
+    GroundTruthFeedbackRequest,
+    GroundTruthFeedbackResponse,
     HealthResponse,
     ModelInfoResponse,
+    MonitoringRunResponse,
     PredictionRequest,
     PredictionResponse,
     ReadyResponse,
@@ -39,6 +43,7 @@ def create_app(
     config: Optional[AppConfig] = None,
     model_loader: Optional[ModelLoader] = None,
     prediction_logger: Optional[PredictionLogger] = None,
+    monitoring_service: Optional[MonitoringService] = None,
 ) -> FastAPI:
     """Creates and configures a FastAPI application instance.
 
@@ -46,6 +51,7 @@ def create_app(
         config: Application configuration.
         model_loader: Optional custom/mocked ModelLoader instance.
         prediction_logger: Optional custom/mocked PredictionLogger instance.
+        monitoring_service: Optional custom/mocked MonitoringService instance.
 
     Returns:
         FastAPI: Configured serving application.
@@ -54,6 +60,7 @@ def create_app(
     loader = model_loader or ModelLoader(cfg)
     logger_db = prediction_logger or PredictionLogger(config=cfg)
     prediction_svc = PredictionService(loader, logger_db, cfg)
+    monitoring_svc = monitoring_service or MonitoringService(app_config=cfg)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -74,6 +81,8 @@ def create_app(
         try:
             if hasattr(logger_db, "engine") and hasattr(logger_db.engine, "dispose"):
                 logger_db.engine.dispose()
+            if hasattr(monitoring_svc, "engine") and hasattr(monitoring_svc.engine, "dispose"):
+                monitoring_svc.engine.dispose()
         except Exception as e:
             logger.warning("Error disposing database engine on shutdown: %s", e)
 
@@ -92,6 +101,7 @@ def create_app(
     app.state.model_loader = loader
     app.state.prediction_logger = logger_db
     app.state.prediction_service = prediction_svc
+    app.state.monitoring_service = monitoring_svc
 
     # --------------------------------------------------------------------------
     # Middleware: Request ID & Request Latency Logging
@@ -333,6 +343,71 @@ def create_app(
             new_version=new_container.model_version,
             model_name=new_container.model_name,
             reloaded_at=datetime.now(timezone.utc).isoformat(),
+        )
+
+    # --------------------------------------------------------------------------
+    # Monitoring Endpoints
+    # --------------------------------------------------------------------------
+    @app.get("/monitoring/status", tags=["Model Monitoring"])
+    async def monitoring_status():
+        """Returns current model monitoring status, latest drift evaluation, and recommendations."""
+        return monitoring_svc.get_latest_status()
+
+    @app.get("/monitoring/latest", tags=["Model Monitoring"])
+    async def monitoring_latest_report():
+        """Returns the most recent dataset drift audit report."""
+        status_data = monitoring_svc.get_latest_status()
+        latest_drift = status_data.get("latest_drift_report")
+        if not latest_drift:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No monitoring reports have been generated yet.",
+            )
+        return latest_drift
+
+    @app.post(
+        "/monitoring/run",
+        response_model=MonitoringRunResponse,
+        dependencies=[Depends(verify_admin_token)],
+        tags=["Model Monitoring"],
+    )
+    async def run_monitoring_cycle():
+        """Triggers an on-demand statistical monitoring and drift detection cycle.
+
+        Requires administrative authorization via 'X-Admin-API-Key' or 'Authorization: Bearer <token>'.
+        """
+        summary = monitoring_svc.run_monitoring_cycle()
+        return MonitoringRunResponse(
+            status="completed",
+            report_id=summary.report_id,
+            dataset_drift_detected=summary.dataset_drift_detected,
+            drift_share=summary.drift_share,
+            data_quality_status=summary.data_quality_status,
+            prediction_drift_detected=summary.prediction_drift_detected,
+            retraining_recommendation_status=summary.retraining_recommendation_status,
+            retraining_trigger_reason=summary.retraining_trigger_reason,
+            report_html_path=summary.report_html_path,
+            report_json_path=summary.report_json_path,
+            executed_at=summary.timestamp,
+        )
+
+    @app.post(
+        "/monitoring/feedback",
+        response_model=GroundTruthFeedbackResponse,
+        tags=["Model Monitoring"],
+    )
+    async def submit_ground_truth_feedback(feedback: GroundTruthFeedbackRequest):
+        """Ingests delayed ground truth churn outcome for a prediction request."""
+        monitoring_svc.ingest_ground_truth(
+            request_id=feedback.request_id,
+            actual_churn=feedback.actual_churn,
+            source=feedback.source,
+        )
+        return GroundTruthFeedbackResponse(
+            status="success",
+            request_id=feedback.request_id,
+            actual_churn=feedback.actual_churn,
+            message="Ground truth feedback recorded successfully.",
         )
 
     return app
