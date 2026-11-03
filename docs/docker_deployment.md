@@ -211,17 +211,21 @@ docker compose down -v
 
 ---
 
-## 7. Phase 4.1 Comprehensive Verification & Audit Matrix
+## 7. Phase 4.2 Comprehensive Live Deployment Verification & Audit Matrix
 
-| Category | Verification Item | Status | Verification Evidence / Mechanism |
-| :--- | :--- | :---: | :--- |
-| **A. Static Configuration** | Compose Specification | **PASS** | `docker compose config` rendered canonical multi-container topology with 0 syntax or dependency errors. |
-| **A. Static Configuration** | Multi-Stage Dockerfile | **PASS** | Multi-stage builder/runner separation, non-root user `10001:10001`, `--workers 1` concurrency. |
-| **A. Static Configuration** | Security & Secret Isolation | **PASS** | Git ignores `.env`, `.env.example` contains placeholders, reload token required, minimal ports exposed. |
-| **B. Docker Image Build** | Image Build Execution | **NOT EXECUTED** | Docker Desktop engine is offline on host; requires Windows administrator privilege to launch `com.docker.service`. |
-| **C. Docker Runtime** | Container Execution | **NOT EXECUTED** | Daemon pipe `//./pipe/dockerDesktopLinuxEngine` unavailable; runtime execution not simulated. |
-| **D. PostgreSQL Integration** | Containerized Database | **NOT EXECUTED** | Dependent on Docker runtime; `scripts/init_postgres.sql` verified statically. |
-| **E. MLflow Migration** | Dual-URI Migration & Parity | **PASS** (Tested) / **PENDING** (Live PG) | Verified end-to-end in automated integration tests (`test_full_end_to_end_migration_with_parity`); live PostgreSQL migration safely audited as `PENDING_TARGET_BACKEND`. |
-| **F. Real Model In Docker** | Container Model Prediction | **NOT EXECUTED** | Dependent on container runtime; host serving engine prediction verified via integration test suite. |
-| **G. Persistence Verification**| Volume Lifecycle Probing | **NOT EXECUTED** | Dependent on container runtime; named volumes (`postgres_data`, `mlflow_artifacts`) defined. |
-| **H. Regression Test Suite** | Full Pytest Suite | **PASS** | **51 passed, 0 failed** across all unit, leakage, serving, and migration test suites. |
+The Phase 4.2 live deployment verification has been completed end-to-end against active Docker containers, validating multi-stage container builds, PostgreSQL database initialization, MLflow SQLite-to-PostgreSQL migration, real model dynamic resolution, live REST inference, authenticated dynamic reload, zero-PII telemetry logging, and named volume persistence across container restarts.
+
+| Item | Verification Category | Status | Operational Evidence & Verification Details |
+| :---: | :--- | :---: | :--- |
+| **A** | **Docker Engine & CLI Verification** | **PASS** | Docker Engine `29.1.3` (WSL2 Kernel `6.6.87.2-microsoft-standard-WSL2`) and Docker Compose `v5.0.0-desktop.1` verified operational. |
+| **B** | **Configuration & Credential Harmonization** | **PASS** | Harmonized PostgreSQL credentials across `docker-compose.yml`, `.env.example`, `scripts/init_postgres.sql`, and `scripts/migrate_mlflow_registry.py` with standard `mlops_user:mlops_password@postgres:5432/mlops_db`. |
+| **C** | **Multi-Stage Production Docker Build** | **PASS** | Built `enterprise-mlops-api:1.0.0` from `Dockerfile` (two stages: `builder` and unprivileged `runner`). Content image size: **745 MB**. Verified runtime non-root execution (`uid=10001(mlops) gid=10001(mlops)`). |
+| **D** | **Compose Multi-Container Startup & Health** | **PASS** | `mlops-postgres`, `mlops-mlflow`, and `mlops-api` launched and reported `healthy`. Healthchecks: `pg_isready -U mlops_user -d mlops_db` for Postgres; `curl -f http://localhost:5000/health` for MLflow; `curl -f http://localhost:8000/health` for FastAPI. |
+| **E** | **MLflow PostgreSQL Migration & Parity** | **PASS** | Migrated 4 runs, all metrics/parameters/tags, and all 4 model versions of `customer-churn-classifier` from `sqlite:///mlflow.db` into PostgreSQL. Registered model aliases established (`@champion` $\to$ v4, `@challenger` $\to$ v3, `@candidate` $\to$ v4). Prediction parity verified with `np.testing.assert_allclose(atol=1e-5)` against holdout test records. Migration audit saved to `reports/evaluations/mlflow_migration_audit.json` with status `SUCCESS`. |
+| **F** | **FastAPI Dynamic Champion Model Loading** | **PASS** | `GET http://localhost:8000/ready` returned `200 OK` with model `customer-churn-classifier` version `4` under alias `champion`. `GET http://localhost:8000/model/info` returned `200 OK` with run ID `a5f011c5e93f423799ea0124f7611385`, threshold `0.571`, and status `active`. |
+| **G** | **Live Inference Execution in Container** | **PASS** | Executed `POST http://localhost:8000/predict` on live Telco customer sample. HTTP `200 OK` returned: prediction `Churn`, probability `0.7403` (and post-restart sample probability `0.5781`), latency `35.72 ms` (post-restart `20.90 ms`). |
+| **H** | **Swagger UI & OpenAPI Specification** | **PASS** | `GET http://localhost:8000/docs` returned HTTP `200 OK` with interactive OpenAPI documentation for all serving endpoints. |
+| **I** | **Dynamic Reload & Security Authentication** | **PASS** | `POST http://localhost:8000/model/reload` with `X-Admin-API-Key: dev-admin-secret-key-phase3` returned HTTP `200 OK` (`{"status": "reloaded", "previous_version": "4", "new_version": "4"}`). Unauthorized requests rejected with `401 Unauthorized`. |
+| **J** | **PostgreSQL Telemetry Persistence (Zero PII)** | **PASS** | Queried `public.prediction_logs` in PostgreSQL: confirmed records persisted with `request_id`, `model_name`, `model_version`, `prediction`, `churn_probability`, `decision_threshold`, `inference_latency_ms`, and `timestamp`. Customer feature inputs are excluded, enforcing zero-PII compliance. |
+| **K** | **Container Restart & Volume Persistence** | **PASS** | Executed `docker compose restart`. All 3 services resumed and returned to `Up (healthy)`. Active model version 4 remained loaded without re-downloading. Verified both pre- and post-restart prediction logs (ID 1 and 2) preserved in PostgreSQL. |
+| **L** | **Regression Test Suite** | **PASS** | Complete regression test suite passes (**51 passed, 0 failed**) covering data ingestion, ML pipelines, MLflow registry governance, model loader, prediction service, telemetry database logging, and migration tool. |

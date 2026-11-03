@@ -51,6 +51,8 @@ services:
       --default-artifact-root /app/mlruns
       --host 0.0.0.0
       --port 5000
+      --workers 1
+      --allowed-hosts "*"
     environment:
       MLFLOW_DISABLE_AGENT_HINT: "1"
       POSTGRES_USER: ${POSTGRES_USER:-mlops_user}
@@ -71,7 +73,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 15s
+      start_period: 45s
     deploy:
       resources:
         limits:
@@ -97,7 +99,7 @@ services:
       SERVING_MODEL_ALIAS: champion
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
-      - mlflow_artifacts:/app/mlruns:ro
+      - mlflow_artifacts:/app/mlruns
     ports:
       - "${API_HOST_PORT:-8000}:8000"
     depends_on:

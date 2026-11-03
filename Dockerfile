@@ -28,7 +28,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Install application dependencies reproducibly
 WORKDIR /build
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
+    pip install --default-timeout=120 --retries=10 --extra-index-url https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 
 # ------------------------------------------------------------------------------
 # Stage 2: Minimal Production Runtime

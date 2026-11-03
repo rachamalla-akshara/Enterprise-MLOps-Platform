@@ -275,7 +275,13 @@ python scripts/migrate_mlflow_registry.py \
   "postgresql+psycopg2://mlops_user:mlops_password@localhost:5432/mlops_db"
 ```
 
-### 6. Compose Teardown
+### 6. Phase 4.2 Verified Runtime Architecture
+- **Single Uvicorn Worker**: Running with `--workers 1` guarantees that in-memory model state and dynamic reload operations do not suffer from split-brain divergence across process boundaries. Horizontal concurrency is scaled across container replicas behind a load balancer.
+- **MLflow 3.x Host Authorization**: Configured with `--allowed-hosts "*"` to permit internal Docker bridge network communication (`http://mlflow:5000`) without DNS rebinding protection rejections.
+- **Artifact Volume Storage**: Mounted read-write (`mlflow_artifacts:/app/mlruns`) to permit model metadata caching and dynamic alias resolution.
+- **Zero-PII Telemetry**: Prediction telemetry is continuously logged to `public.prediction_logs` in PostgreSQL without sensitive customer features.
+
+### 7. Compose Teardown
 ```bash
 # Stop containers while preserving persistent volumes
 docker compose down
