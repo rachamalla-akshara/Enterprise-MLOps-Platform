@@ -120,7 +120,7 @@ Alert rules are defined in `monitoring/prometheus/alerts.yml` partitioned across
 | `ModelReloadFailure` | `critical` | `increase(model_reloads_total{status="failure"}[5m]) > 0` | 1m | Inspect candidate model pipeline signature; previous model was preserved safely. |
 | `HighApiRequestLatency` | `warning` | `/predict p95 > 500ms` | 2m | Check CPU throttling; scale API replicas or optimize payload batch sizes. |
 | `HighModelInferenceLatency`| `warning` | `predict_proba p95 > 100ms` | 2m | Inspect model feature transformer overhead; profile Scikit-learn steps. |
-| `ElevatedPredictionErrors` | `warning` | `rate(model_prediction_errors_total[5m]) > 0.05` | 2m | Review client input payloads for malformed data or schema non-conformity. |
+| `ElevatedPredictionErrors` | `warning` | `error ratio > 5% (errors / (predictions + errors))` | 2m | Review client input payloads for malformed data or schema non-conformity. |
 | `DatasetDriftDetected` | `warning` | `monitoring_drift_share >= 0.30` | 5m | Inspect Evidently HTML report in `reports/monitoring/`; audit feature distributions. |
 | `DataQualityFailures` | `warning` | `increase(monitoring_data_quality_failures_total[1h]) > 0` | 5m | Verify upstream ingestion pipelines for novel enum values or null surges. |
 | `PredictionDriftDetected` | `warning` | `increase(monitoring_prediction_drift_detections_total[1h]) > 0` | 5m | Check output probability calibration against reference baseline (~26.5%). |

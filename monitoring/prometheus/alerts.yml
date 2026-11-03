@@ -85,14 +85,17 @@ groups:
           description: "Champion model predict_proba p95 execution time is {{ $value }}s, indicating pipeline contention or CPU throttling."
 
       - alert: ElevatedPredictionErrors
-        expr: rate(model_prediction_errors_total[5m]) > 0.05
+        expr: >
+          sum(rate(model_prediction_errors_total[5m]))
+          /
+          clamp_min(sum(rate(model_predictions_total[5m])) + sum(rate(model_prediction_errors_total[5m])), 0.001) > 0.05
         for: 2m
         labels:
           severity: warning
           tier: ml_serving
         annotations:
-          summary: "Elevated model prediction errors detected"
-          description: "Inference error rate exceeds 0.05 errors per second over the last 5 minutes."
+          summary: "Elevated model prediction error ratio detected (>5%)"
+          description: "Over 5% of model prediction requests resulted in errors over the last 5 minutes."
 
   # ----------------------------------------------------------------------------
   # 3. Model Monitoring, Data Drift & Governance
