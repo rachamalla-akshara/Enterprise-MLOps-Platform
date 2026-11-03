@@ -3,6 +3,10 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import os
+
+# Suppress MLflow agent hint in serving logs before importing mlflow
+os.environ["MLFLOW_DISABLE_AGENT_HINT"] = "1"
+
 from pathlib import Path
 import threading
 from typing import Any, Optional, Tuple
@@ -18,7 +22,7 @@ from src.serving.exceptions import ModelNotLoadedError, ModelReloadError
 logger = get_logger(__name__)
 
 # Suppress MLflow agent hint in serving logs
-os.environ["MLFLOW_DISABLE_AGENT_HINT"] = "1"
+pass
 
 
 @dataclass(frozen=True)

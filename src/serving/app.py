@@ -12,6 +12,14 @@ from fastapi.responses import JSONResponse
 from src.common.config import AppConfig, get_config
 from src.common.logger import get_logger
 from src.monitoring.monitoring_service import MonitoringService
+from src.observability import (
+    PrometheusMetricsMiddleware,
+    get_latest_metrics,
+    record_model_loaded,
+    record_model_reload_event,
+    record_model_unavailable,
+    record_prediction_error,
+)
 from src.serving.exceptions import (
     AuthenticationError,
     ModelNotLoadedError,
@@ -69,11 +77,19 @@ def create_app(
         try:
             loader.load_champion_model()
             logger.info("Model Serving Engine successfully loaded active champion model.")
+            container = loader.get_active_model()
+            record_model_loaded(
+                model_name=container.model_name,
+                model_version=container.model_version,
+                alias=container.alias,
+                decision_threshold=float(cfg.serving.decision_threshold),
+            )
         except Exception as e:
             logger.error(
                 "CRITICAL: Failed to load champion model on startup: %s. Serving engine will start in unready state.",
                 e,
             )
+            record_model_unavailable(cfg.mlflow.registered_model_name)
 
         yield
 
@@ -102,6 +118,9 @@ def create_app(
     app.state.prediction_logger = logger_db
     app.state.prediction_service = prediction_svc
     app.state.monitoring_service = monitoring_svc
+
+    # Attach Prometheus metrics middleware
+    app.add_middleware(PrometheusMetricsMiddleware)
 
     # --------------------------------------------------------------------------
     # Middleware: Request ID & Request Latency Logging
@@ -137,6 +156,7 @@ def create_app(
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
         req_id = getattr(request.state, "request_id", str(uuid.uuid4()))
         logger.warning("[%s] Request validation failed: %s", req_id, exc.errors())
+        record_prediction_error(error_type="validation_error")
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content={
@@ -152,6 +172,7 @@ def create_app(
     async def model_not_loaded_handler(request: Request, exc: ModelNotLoadedError):
         req_id = getattr(request.state, "request_id", str(uuid.uuid4()))
         logger.error("[%s] Model not loaded: %s", req_id, exc)
+        record_prediction_error(error_type="model_not_loaded")
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
@@ -334,7 +355,20 @@ def create_app(
         alias = reload_req.alias if reload_req else None
         target_alias = alias or cfg.serving.model_alias
 
-        old_container, new_container = loader.reload(alias=target_alias)
+        try:
+            old_container, new_container = loader.reload(alias=target_alias)
+            model_name = getattr(new_container, "model_name", cfg.mlflow.registered_model_name)
+            record_model_reload_event(status="success", alias=target_alias, model_name=model_name)
+            record_model_loaded(
+                model_name=model_name,
+                model_version=getattr(new_container, "model_version", "unknown"),
+                alias=target_alias,
+                decision_threshold=float(cfg.serving.decision_threshold),
+            )
+        except Exception:
+            model_name = getattr(loader, "model_name", None) or cfg.mlflow.registered_model_name
+            record_model_reload_event(status="failure", alias=target_alias, model_name=model_name)
+            raise
 
         return ReloadResponse(
             status="reloaded",
@@ -409,6 +443,20 @@ def create_app(
             actual_churn=feedback.actual_churn,
             message="Ground truth feedback recorded successfully.",
         )
+
+    # --------------------------------------------------------------------------
+    # Observability & Metrics Endpoints
+    # --------------------------------------------------------------------------
+    @app.get(
+        "/metrics",
+        tags=["Observability"],
+        summary="Prometheus metrics exposition endpoint",
+        response_class=Response,
+    )
+    async def prometheus_metrics():
+        """Exposes application, inference, model governance, and monitoring metrics in Prometheus format."""
+        content, media_type = get_latest_metrics()
+        return Response(content=content, media_type=media_type)
 
     return app
 

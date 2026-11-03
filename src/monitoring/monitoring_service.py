@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
+import time
 from typing import Any, Dict, List, Optional, Tuple
 import uuid
 import numpy as np
@@ -203,6 +204,11 @@ class MonitoringService:
                 session.add(feedback)
             session.commit()
             logger.info("Ingested ground truth for request %s (actual_churn=%d)", request_id, actual_churn)
+            try:
+                from src.observability.metrics import record_ground_truth_ingestion
+                record_ground_truth_ingestion(source=source)
+            except Exception:
+                pass
         except Exception as e:
             session.rollback()
             logger.error("Failed to persist ground truth feedback: %s", e)
@@ -290,6 +296,7 @@ class MonitoringService:
         ground_truth_df: Optional[pd.DataFrame] = None,
     ) -> MonitoringCycleSummary:
         """Executes complete statistical monitoring cycle and persists audit records."""
+        t_start = time.perf_counter()
         report_id = str(uuid.uuid4())
         timestamp = datetime.now(timezone.utc)
         active_model_name = model_name or self.app_cfg.mlflow.registered_model_name
@@ -504,6 +511,31 @@ class MonitoringService:
             report_html_path=str(html_path),
             report_json_path=str(json_path),
         )
+
+        # Record Prometheus monitoring telemetry
+        duration_sec = time.perf_counter() - t_start
+        try:
+            from src.observability.metrics import record_monitoring_run, record_supervised_metrics
+            record_monitoring_run(
+                status="completed",
+                duration_seconds=duration_sec,
+                dataset_drift_detected=drift_res.dataset_drift_detected,
+                drift_share=drift_res.drift_share,
+                data_quality_status=quality_res.status,
+                prediction_drift_detected=pred_res.probability_drift_detected or pred_res.class_distribution_drift_detected,
+                retraining_priority=recommendation.status,
+                retraining_reason=recommendation.trigger_reason,
+            )
+            if perf_res.status == "SUCCESS":
+                record_supervised_metrics(
+                    roc_auc=perf_res.roc_auc,
+                    pr_auc=perf_res.pr_auc,
+                    f1=perf_res.f1_score,
+                    brier_score=perf_res.brier_score,
+                )
+        except Exception as obs_err:
+            logger.debug("Failed to record observability metrics for monitoring run: %s", obs_err)
+
         return summary
 
     def get_latest_status(self) -> Dict[str, Any]:

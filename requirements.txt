@@ -35,3 +35,7 @@ boto3==1.37.9
 
 # Model Monitoring & Drift Detection
 evidently==0.7.23
+
+# Observability & Metrics
+prometheus-client==0.21.1
+psutil==7.0.0

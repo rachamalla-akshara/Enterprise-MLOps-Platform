@@ -1,0 +1,150 @@
+# ==============================================================================
+# Enterprise MLOps Platform - Prometheus Alerting Rules
+# ==============================================================================
+#
+# Severity Tiers:
+# - critical:      Immediate operational outage or serving impairment requiring on-call response.
+# - warning:       Distribution drift, degraded latency, or data quality anomalies requiring triage.
+# - informational: Normal automated lifecycle events (e.g. retraining recommendations) for logging.
+# ==============================================================================
+
+groups:
+  # ----------------------------------------------------------------------------
+  # 1. API Serving & Infrastructure Health
+  # ----------------------------------------------------------------------------
+  - name: api_availability_and_health
+    rules:
+      - alert: ApiServiceUnavailable
+        expr: up{job="fastapi-serving"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          tier: serving
+        annotations:
+          summary: "FastAPI serving engine is unreachable"
+          description: "FastAPI container target has been down for more than 1 minute. Model inference is completely offline."
+
+      - alert: ElevatedHttp5xxErrors
+        expr: >
+          sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_requests_total[5m])), 0.001) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          tier: serving
+        annotations:
+          summary: "High HTTP 5xx error rate detected (>5%)"
+          description: "Over 5% of API requests resulted in HTTP 5xx server errors over the last 5 minutes."
+
+      - alert: HighApiRequestLatency
+        expr: >
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{endpoint="/predict"}[5m])) by (le)) > 0.500
+        for: 2m
+        labels:
+          severity: warning
+          tier: serving
+        annotations:
+          summary: "FastAPI /predict p95 latency exceeds 500ms"
+          description: "95th percentile request latency on /predict is {{ $value }}s, exceeding the 500ms SLA threshold."
+
+  # ----------------------------------------------------------------------------
+  # 2. Machine Learning Model Serving & Inference
+  # ----------------------------------------------------------------------------
+  - name: model_inference_health
+    rules:
+      - alert: ModelUnavailable
+        expr: model_available == 0
+        for: 1m
+        labels:
+          severity: critical
+          tier: ml_serving
+        annotations:
+          summary: "Active champion model is not loaded"
+          description: "The serving engine does not have an active model loaded in memory. Predictions will return 503 Service Unavailable."
+
+      - alert: ModelReloadFailure
+        expr: increase(model_reloads_total{status="failure"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          tier: ml_governance
+        annotations:
+          summary: "Model reload operation failed"
+          description: "An attempt to dynamically reload or update the active champion model failed verification."
+
+      - alert: HighModelInferenceLatency
+        expr: >
+          histogram_quantile(0.95, sum(rate(model_inference_duration_seconds_bucket[5m])) by (le)) > 0.100
+        for: 2m
+        labels:
+          severity: warning
+          tier: ml_serving
+        annotations:
+          summary: "Model raw inference p95 latency exceeds 100ms"
+          description: "Champion model predict_proba p95 execution time is {{ $value }}s, indicating pipeline contention or CPU throttling."
+
+      - alert: ElevatedPredictionErrors
+        expr: rate(model_prediction_errors_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          tier: ml_serving
+        annotations:
+          summary: "Elevated model prediction errors detected"
+          description: "Inference error rate exceeds 0.05 errors per second over the last 5 minutes."
+
+  # ----------------------------------------------------------------------------
+  # 3. Model Monitoring, Data Drift & Governance
+  # ----------------------------------------------------------------------------
+  - name: model_drift_and_monitoring
+    rules:
+      - alert: DatasetDriftDetected
+        expr: monitoring_drift_share >= 0.30
+        for: 5m
+        labels:
+          severity: warning
+          tier: monitoring
+        annotations:
+          summary: "Significant feature distribution drift detected (>=30%)"
+          description: "Evidently drift detector measured drift share at {{ $value }}, exceeding the 30% threshold."
+
+      - alert: DataQualityFailures
+        expr: increase(monitoring_data_quality_failures_total[1h]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          tier: monitoring
+        annotations:
+          summary: "Data quality schema validation failures detected"
+          description: "Inference telemetry buffer contains out-of-range numericals, missing values, or unapproved category values."
+
+      - alert: PredictionDriftDetected
+        expr: increase(monitoring_prediction_drift_detections_total[1h]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          tier: monitoring
+        annotations:
+          summary: "Model prediction distribution drift detected"
+          description: "Model output probability distribution or predicted churn rate has drifted significantly from training prior."
+
+      - alert: MonitoringCycleFailed
+        expr: increase(monitoring_runs_total{status="failed"}[1h]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          tier: monitoring
+        annotations:
+          summary: "Evidently monitoring cycle execution failed"
+          description: "The background monitoring worker encountered an unhandled exception during statistical evaluation."
+
+      - alert: RetrainingRecommendationGenerated
+        expr: increase(monitoring_retraining_recommendations_total[1h]) > 0
+        for: 1m
+        labels:
+          severity: informational
+          tier: ml_governance
+        annotations:
+          summary: "Autonomous retraining recommendation generated"
+          description: "Monitoring engine issued a retraining directive. Trigger reason and metrics recorded in governance audit table."

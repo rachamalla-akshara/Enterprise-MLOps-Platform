@@ -7,6 +7,10 @@ import pandas as pd
 
 from src.common.config import AppConfig, get_config
 from src.common.logger import get_logger
+from src.observability.metrics import (
+    record_prediction_error,
+    record_prediction_metric,
+)
 from src.serving.exceptions import PredictionError
 from src.serving.model_loader import ModelLoader
 from src.serving.prediction_logger import PredictionLogger
@@ -57,6 +61,7 @@ class PredictionService:
             probabilities = container.pipeline.predict_proba(input_df)
         except Exception as e:
             logger.error("Inference execution failed for request_id=%s: %s", request_id, e)
+            record_prediction_error(error_type="inference_error")
             # Log failure status to telemetry
             self.logger_db.log_prediction(
                 request_id=request_id,
@@ -87,6 +92,15 @@ class PredictionService:
             model_version=container.model_version,
             inference_latency_ms=latency_ms,
             prediction_timestamp=timestamp_str,
+        )
+
+        # Record Prometheus prediction telemetry
+        record_prediction_metric(
+            model_name=container.model_name,
+            model_version=container.model_version,
+            churn_probability=churn_prob,
+            prediction_label=prediction_label,
+            inference_latency_ms=latency_ms,
         )
 
         # Safely persist telemetry log without failing caller on logging errors

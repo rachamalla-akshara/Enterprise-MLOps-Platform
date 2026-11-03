@@ -98,6 +98,7 @@ Complete architectural blueprints and operational specifications are available i
 - [**Deployment Architecture (`docs/deployment_design.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/deployment_design.md): Multi-stage Dockerfiles, Docker Compose topology, Kubernetes manifests, HPA, and rolling update strategies.
 - [**Monitoring & Drift Detection (`docs/monitoring_design.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/monitoring_design.md): Prometheus metrics catalog, Grafana dashboards, Evidently AI statistical tests, and automated retraining triggers.
 - [**Evidently AI Drift Monitoring & Retraining Guide (`docs/drift_monitoring.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/drift_monitoring.md): Complete guide to Phase 5 drift detection, privacy-aware telemetry buffer, statistical tests, delayed ground-truth evaluation, and retraining policies.
+- [**Prometheus Observability & Grafana Dashboards (`docs/observability.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/observability.md): Complete specification of Prometheus metrics catalog, 12 alert rules across 3 tiers, 4 auto-provisioned Grafana dashboards, and Docker topology.
 - [**Implementation Roadmap & Testing (`docs/implementation_roadmap.md`)**](file:///C:/Users/raksh/.gemini/antigravity/scratch/Enterprise-MLOps-Platform/docs/implementation_roadmap.md): Multi-phase development roadmap, unit/integration/stress testing strategy, and GitHub Actions CI/CD workflows.
 
 ---
@@ -112,8 +113,8 @@ Complete architectural blueprints and operational specifications are available i
 [x] Phase 3: Production-Grade FastAPI Model Serving Engine & Prediction Telemetry (COMPLETED)
 [x] Phase 4: Lightweight Docker Multi-Stage Containerization & Compose Orchestration (COMPLETED)
 [x] Phase 5: Evidently AI Data Drift Detection, Model Monitoring & Retraining Controller (COMPLETED)
-[ ] Phase 6: Prometheus & Grafana Observability Dashboards & Alert Rules (NEXT)
-[ ] Phase 7: Kubernetes Orchestration (Manifests, HPA, Ingress & Health Probes)
+[x] Phase 6: Prometheus & Grafana Observability Dashboards & Alert Rules (COMPLETED)
+[ ] Phase 7: Kubernetes Orchestration (Manifests, HPA, Ingress & Health Probes) (NEXT)
 [ ] Phase 8: GitHub Actions CI/CD Automation & Security Scanning
 [ ] Phase 9: React Operations Dashboard & Inference Playground
 ```
@@ -396,4 +397,128 @@ When drift or degradation is confirmed, the engine issues a structured recommend
 3. **`PREDICTION_DRIFT` Trigger**: Triggered when predicted churn rate shifts by $> 15\%$ from the training prior ($26.54\%$) or output probability distribution drifts significantly ($p < 0.05$).
 4. **`DATA_QUALITY_FAIL` Trigger**: Triggered when missing value rates or invalid category rates exceed acceptable thresholds.
 5. **Cooldown Enforcement**: Once a retraining recommendation is recorded, an automatic **24-hour cooldown** prevents redundant alert spam.
+
+---
+
+## 11. Phase 6: Prometheus Observability, Grafana Dashboards & Alert Rules
+
+Phase 6 implements a comprehensive, production-hardened observability layer providing real-time visibility into HTTP serving performance, machine learning model inference latencies, champion governance metadata, and statistical data/prediction drift detection.
+
+```mermaid
+flowchart LR
+    Client["Client Traffic"] -->|"HTTP Requests"| FastAPI["FastAPI Engine (:8000)"]
+    FastAPI -->|"Prometheus Middleware"| Metrics["GET /metrics"]
+    Prometheus["Prometheus Server (:9090)"] -->|"Scrape 5s"| Metrics
+    Prometheus -->|"Evaluate 15s"| Alerts["monitoring/prometheus/alerts.yml\n(12 Rules across 3 Tiers)"]
+    Grafana["Grafana Server (:3000)"] -->|"Query PromQL"| Prometheus
+    Grafana --> DashA["Dashboard A: API Overview"]
+    Grafana --> DashB["Dashboard B: ML Inference"]
+    Grafana --> DashC["Dashboard C: Model Monitoring"]
+    Grafana --> DashD["Dashboard D: Infrastructure"]
+```
+
+### 1. Prometheus Metrics Catalog
+
+All metrics adhere to strict low-cardinality label rules and guarantee zero leakage of customer PII, request identifiers, or sensitive payload features:
+
+| Metric Name | Type | Labels | Description |
+| :--- | :--- | :--- | :--- |
+| `http_requests_total` | Counter | `method`, `endpoint`, `status_code` | Total HTTP requests processed with normalized endpoint paths |
+| `http_request_duration_seconds` | Histogram | `method`, `endpoint` | End-to-end request latency distribution (13 buckets: 5ms to 10s) |
+| `http_requests_in_progress` | Gauge | `method`, `endpoint` | Number of currently concurrent active HTTP requests |
+| `http_errors_total` | Counter | `method`, `endpoint`, `status_code` | Count of 4xx and 5xx client and server errors |
+| `api_uptime_seconds` | Gauge | None | Total continuous uptime of the FastAPI serving process |
+| `model_predictions_total` | Counter | `model_name`, `model_version` | Total model inference operations performed |
+| `model_predictions_by_class_total` | Counter | `model_name`, `model_version`, `predicted_class` | Inferences partitioned by classification outcome (`Churn` vs `No Churn`) |
+| `model_prediction_probability` | Histogram | `model_name`, `model_version` | Output positive churn probability distribution (calibrated bins including 0.571 cutoff) |
+| `model_prediction_errors_total` | Counter | `error_type` | Count of prediction and pipeline execution failures |
+| `model_inference_duration_seconds` | Histogram | `model_name`, `model_version` | Sub-millisecond timing of Scikit-learn/XGBoost `predict_proba` (10 buckets: 1ms to 1s) |
+| `model_reloads_total` | Counter | `status`, `alias` | Model reload operations grouped by outcome (`success`/`failure`) and alias |
+| `model_info` | Gauge | `model_name`, `model_version`, `alias`, `decision_threshold` | Informational gauge (value 1) reflecting currently active champion metadata |
+| `model_available` | Gauge | `model_name` | Model readiness status (1 = healthy and loaded, 0 = unavailable) |
+| `model_last_reload_timestamp_seconds` | Gauge | `model_name` | Epoch timestamp of the last successful model reload |
+| `model_load_failures_total` | Counter | `model_name`, `alias` | Cumulative count of failed model loading or reloading operations |
+| `monitoring_runs_total` | Counter | `status` | Total Evidently AI data drift and quality monitoring cycles |
+| `monitoring_run_duration_seconds` | Histogram | None | Execution duration of monitoring cycle (7 buckets: 0.5s to 60s) |
+| `monitoring_drift_detections_total` | Counter | None | Total confirmed dataset drift events (drift share >= 30%) |
+| `monitoring_drift_share` | Gauge | None | Ratio of drifted features over evaluated feature pool in latest cycle |
+| `monitoring_data_quality_failures_total` | Counter | None | Cumulative data quality check failures during monitoring runs |
+| `monitoring_prediction_drift_detections_total` | Counter | None | Cumulative prediction distribution drift events |
+| `monitoring_retraining_recommendations_total` | Counter | `priority`, `trigger_reason` | Retraining recommendations generated (cooldown enforced) |
+| `monitoring_ground_truth_feedback_total` | Counter | `source` | Total delayed ground-truth feedback observations received |
+| `monitoring_model_roc_auc` | Gauge | None | Supervised ROC-AUC evaluated on matched ground truth |
+| `monitoring_model_pr_auc` | Gauge | None | Supervised PR-AUC evaluated on matched ground truth |
+| `monitoring_model_f1` | Gauge | None | Supervised F1 score evaluated on matched ground truth |
+| `monitoring_model_brier_score` | Gauge | None | Supervised Brier score evaluated on matched ground truth |
+| `process_cpu_seconds_total` | Counter | None | Process CPU user and system execution time (via `psutil`) |
+| `process_resident_memory_bytes` | Gauge | None | Resident set size (RSS) memory in bytes |
+| `process_virtual_memory_bytes` | Gauge | None | Virtual memory size (VMS) in bytes |
+
+### 2. Prometheus Alert Rules Architecture
+
+Alert rules are defined in `monitoring/prometheus/alerts.yml` across three standardized severity tiers. **Governance Invariant**: Alert rules notify operators and engineers; they **never trigger automated model retraining or champion promotion**.
+
+| Severity Tier | Alert Name | Condition (PromQL) | Duration | Description & Operator Playbook |
+| :--- | :--- | :--- | :--- | :--- |
+| **Critical** | `ApiServiceUnavailable` | `up{job="fastapi"} == 0` | 1m | FastAPI serving container unreachable; restart container and inspect logs |
+| **Critical** | `ModelUnavailable` | `model_available == 0` | 1m | Serving engine loaded with no active champion model; check MLflow registry |
+| **Critical** | `ElevatedHttp5xxErrors` | `rate(http_errors_total{status_code=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05` | 2m | HTTP 5xx error rate exceeds 5%; inspect FastAPI logs and database connection |
+| **Critical** | `ModelReloadFailure` | `increase(model_reloads_total{status="failure"}[5m]) > 0` | 0m | Atomic model reload failed; previous healthy champion was retained |
+| **Warning** | `HighApiRequestLatency` | `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.5` | 5m | p95 request latency exceeds 500ms; check CPU utilization and database pool |
+| **Warning** | `HighModelInferenceLatency` | `histogram_quantile(0.95, sum(rate(model_inference_duration_seconds_bucket[5m])) by (le)) > 0.03` | 5m | p95 inference time exceeds 30ms target; check model pipeline and thread contention |
+| **Warning** | `ElevatedPredictionErrors` | `rate(model_prediction_errors_total[5m]) > 0.01` | 3m | Elevated inference failure rate; inspect input schemas and pipeline transforms |
+| **Warning** | `DatasetDriftDetected` | `monitoring_drift_share >= 0.30` | 0m | Feature drift share >= 30%; feature distribution has diverged from reference |
+| **Warning** | `DataQualityFailures` | `increase(monitoring_data_quality_failures_total[1h]) > 0` | 0m | Input data violated quality contracts (missing values, novel categories) |
+| **Warning** | `PredictionDriftDetected` | `increase(monitoring_prediction_drift_detections_total[1h]) > 0` | 0m | Churn prediction distribution diverged significantly from baseline |
+| **Warning** | `MonitoringCycleFailed` | `increase(monitoring_runs_total{status="failure"}[1h]) > 0` | 0m | Evidently AI background monitoring cycle crashed; inspect worker logs |
+| **Informational** | `RetrainingRecommendationGenerated` | `increase(monitoring_retraining_recommendations_total[1h]) > 0` | 0m | Retraining recommendation created; review evaluation reports before manual trigger |
+
+### 3. Auto-Provisioned Grafana Dashboards
+
+Grafana is provisioned automatically with Prometheus datasource and four pre-configured operational dashboards:
+
+1. **Dashboard A: API Overview (`monitoring/grafana/dashboards/api_overview.json`)**:
+   - Status header: API availability status and current uptime.
+   - Traffic rates: Total HTTP request rate (req/s) broken down by normalized endpoint.
+   - Error tracking: HTTP 5xx and 4xx rate and error ratio percentage.
+   - Status code distribution: Donut chart of 2xx, 4xx, and 5xx responses.
+   - Latency distributions: Multi-series panel tracking p50, p90, p95, and p99 request latencies.
+2. **Dashboard B: ML Inference & Model Performance (`monitoring/grafana/dashboards/ml_inference.json`)**:
+   - Model info panel: Current champion model name, active version, alias, and calibrated decision threshold (0.571).
+   - Prediction throughput: Inference requests per second partitioned by predicted class (`Churn` vs `No Churn`).
+   - Probability distribution: Real-time histogram of output churn probabilities with vertical threshold marker.
+   - Inference latency: High-precision Scikit-learn/XGBoost `predict_proba` p50, p95, and p99 percentiles (target: < 30ms).
+   - Reload events: History and status of model reload operations.
+3. **Dashboard C: Model Monitoring & Data Drift (`monitoring/grafana/dashboards/model_monitoring.json`)**:
+   - Drift share gauge: Real-time gauge of current drifted feature share with color-coded warning (>= 30%) and critical (>= 50%) thresholds.
+   - Cumulative drift events: Step chart of confirmed dataset drift detections.
+   - Data quality failures: Hourly failure count of missing values and schema anomalies.
+   - Retraining recommendations: Timeline of retraining alerts grouped by priority and root-cause trigger.
+   - Supervised performance: Ground-truth feedback tracking with real-time ROC-AUC, PR-AUC, F1-Score, and Brier calibration curves.
+4. **Dashboard D: Infrastructure & System Resources (`monitoring/grafana/dashboards/infrastructure.json`)**:
+   - Target scrape health: Prometheus scrape status for FastAPI and internal Prometheus instances.
+   - Memory consumption: Process resident memory (RSS) and virtual memory (VMS) usage in megabytes.
+   - CPU utilization: Percentage process CPU consumption derived from `process_cpu_seconds_total`.
+   - Monitoring execution: Duration of Evidently AI background monitoring evaluation cycles.
+
+### 4. Docker Compose Observability Topology
+
+Prometheus and Grafana are seamlessly integrated into `docker-compose.yml`:
+
+```bash
+# Start complete containerized stack including Prometheus and Grafana
+docker compose up -d
+
+# Check running observability services
+docker compose ps
+# mlops-api         :8000
+# mlops-mlflow      :5000
+# mlops-postgres    :5432
+# mlops-prometheus  :9090
+# mlops-grafana     :3000
+```
+
+- **Prometheus URL**: `http://localhost:9090` (Scrapes FastAPI `/metrics` every 5 seconds).
+- **Grafana URL**: `http://localhost:3000` (Default credentials: `admin` / `admin`).
+
 
