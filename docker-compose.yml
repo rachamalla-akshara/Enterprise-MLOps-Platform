@@ -94,12 +94,15 @@ services:
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
       PREDICTION_DB_URI: postgresql+psycopg2://${POSTGRES_USER:-mlops_user}:${POSTGRES_PASSWORD:-mlops_password}@postgres:5432/${POSTGRES_DB:-mlops_db}
+      MONITORING_DB_URI: postgresql+psycopg2://${POSTGRES_USER:-mlops_user}:${POSTGRES_PASSWORD:-mlops_password}@postgres:5432/${POSTGRES_DB:-mlops_db}
+      MONITORING_REPORTS_DIR: /app/reports/monitoring
       SERVING_RELOAD_TOKEN: ${SERVING_RELOAD_TOKEN:-dev-admin-secret-key-phase3}
       SERVING_DECISION_THRESHOLD: ${SERVING_DECISION_THRESHOLD:-0.571}
       SERVING_MODEL_ALIAS: champion
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       - mlflow_artifacts:/app/mlruns
+      - monitoring_reports:/app/reports/monitoring
     ports:
       - "${API_HOST_PORT:-8000}:8000"
     depends_on:

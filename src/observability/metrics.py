@@ -37,13 +37,17 @@ def _get_or_create_counter(
     documentation: str,
     labelnames: Tuple[str, ...] = (),
     registry: CollectorRegistry = REGISTRY,
-) -> Counter:
-    """Retrieves an existing Counter from registry or creates a new one."""
+) -> Optional[Counter]:
+    """Retrieves an existing Counter from registry or creates a new one safely."""
     if name in registry._names_to_collectors:
         collector = registry._names_to_collectors[name]
         if isinstance(collector, Counter):
             return collector
-    return Counter(name, documentation, labelnames=labelnames, registry=registry)
+        return None
+    try:
+        return Counter(name, documentation, labelnames=labelnames, registry=registry)
+    except ValueError:
+        return None
 
 
 def _get_or_create_gauge(
@@ -51,13 +55,17 @@ def _get_or_create_gauge(
     documentation: str,
     labelnames: Tuple[str, ...] = (),
     registry: CollectorRegistry = REGISTRY,
-) -> Gauge:
-    """Retrieves an existing Gauge from registry or creates a new one."""
+) -> Optional[Gauge]:
+    """Retrieves an existing Gauge from registry or creates a new one safely."""
     if name in registry._names_to_collectors:
         collector = registry._names_to_collectors[name]
         if isinstance(collector, Gauge):
             return collector
-    return Gauge(name, documentation, labelnames=labelnames, registry=registry)
+        return None
+    try:
+        return Gauge(name, documentation, labelnames=labelnames, registry=registry)
+    except ValueError:
+        return None
 
 
 def _get_or_create_histogram(
@@ -66,13 +74,17 @@ def _get_or_create_histogram(
     labelnames: Tuple[str, ...] = (),
     buckets: Tuple[float, ...] = Histogram.DEFAULT_BUCKETS,
     registry: CollectorRegistry = REGISTRY,
-) -> Histogram:
-    """Retrieves an existing Histogram from registry or creates a new one."""
+) -> Optional[Histogram]:
+    """Retrieves an existing Histogram from registry or creates a new one safely."""
     if name in registry._names_to_collectors:
         collector = registry._names_to_collectors[name]
         if isinstance(collector, Histogram):
             return collector
-    return Histogram(name, documentation, labelnames=labelnames, buckets=buckets, registry=registry)
+        return None
+    try:
+        return Histogram(name, documentation, labelnames=labelnames, buckets=buckets, registry=registry)
+    except ValueError:
+        return None
 
 
 # ------------------------------------------------------------------------------
@@ -278,21 +290,24 @@ PROCESS_VIRTUAL_MEMORY_BYTES = _get_or_create_gauge(
 
 
 def update_process_metrics() -> None:
-    """Updates process CPU and memory metrics safely using psutil if available."""
+    """Updates process CPU and memory metrics safely using psutil if available and registered."""
     try:
         import psutil
 
         p = psutil.Process(os.getpid())
         mem_info = p.memory_info()
-        PROCESS_RESIDENT_MEMORY_BYTES.set(float(mem_info.rss))
-        PROCESS_VIRTUAL_MEMORY_BYTES.set(float(mem_info.vms))
+        if PROCESS_RESIDENT_MEMORY_BYTES is not None:
+            PROCESS_RESIDENT_MEMORY_BYTES.set(float(mem_info.rss))
+        if PROCESS_VIRTUAL_MEMORY_BYTES is not None:
+            PROCESS_VIRTUAL_MEMORY_BYTES.set(float(mem_info.vms))
 
         cpu_times = p.cpu_times()
         total_cpu = float(cpu_times.user + cpu_times.system)
         # Counter can only increment or stay equal
-        current_cpu = REGISTRY.get_sample_value("process_cpu_seconds_total") or 0.0
-        if total_cpu > current_cpu:
-            PROCESS_CPU_SECONDS_TOTAL.inc(total_cpu - current_cpu)
+        if PROCESS_CPU_SECONDS_TOTAL is not None:
+            current_cpu = REGISTRY.get_sample_value("process_cpu_seconds_total") or 0.0
+            if total_cpu > current_cpu:
+                PROCESS_CPU_SECONDS_TOTAL.inc(total_cpu - current_cpu)
     except Exception as exc:
         logger.debug("Process metrics collection skipped: %s", exc)
 
